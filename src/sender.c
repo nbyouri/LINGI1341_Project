@@ -10,87 +10,46 @@
  */
 #include "common.h"
 
-typedef struct {
-    pkt_t   *pkt;
-    int     sent;
-    int     ack;
-} window_entry;
-
-static window_entry **
-init_window(size_t nelem)
-{
-    window_entry **w;
-    w = malloc(nelem * sizeof(window_entry));
-    if (w == NULL) {
-        return NULL;
-    }
-
-    size_t i = 0;
-    for (; i < nelem; w[++i] = NULL);
-
-    return w;
-}
-
-static void
-free_window(window_entry **w, size_t nelem)
-{
-    size_t i = 0;
-    for (; i < nelem; i++) {
-        pkt_del(w[i]->pkt);
-        free(w[i]);
-        w[i] = NULL;
-    }
-    free(w);
-    w = NULL;
-}
 
 /*
- * Returns the entry we need to start retransmission from
- * if none found, return the size of the window_entry
- */
-static size_t
-window_need_acknowledged(window_entry **w, size_t nelem)
-{
-    size_t i = 0;
-    for (; i < nelem; i++) {
-        if (w[i]->ack == 0) {
-            return i;
-        }
-    }
-    return nelem;
-}
-
-/*
- * Read the file from offset and during length bytes onto buf
+ * Read the file or a buffer from offset and during length bytes onto buf
  */
 static int
-get_payload(char **buf, FILE *f, size_t offset, size_t *length)
+get_payload(char **buf, FILE *f, char *data, size_t offset, size_t *length)
 {
-    *buf = realloc(*buf, *length);
-    if (*buf == NULL) {
-        return -1;
-    }
-    memset(*buf, '\0', *length);
+    if (f != NULL) {
+        *buf = realloc(*buf, *length);
+        if (*buf == NULL) {
+            return -1;
+        }
+        memset(*buf, '\0', *length);
 
-    file_set_position(f, offset);
-    size_t readf = read_file(f, buf, *length);
-    if (readf <= 0) {
-        ERROR("Failed to read file\n");
-        return -1;
+        file_set_position(f, offset);
+        size_t readf = read_file(f, buf, *length);
+        if (readf <= 0) {
+            ERROR("Failed to read file\n");
+            return -1;
+        }
+        if (readf < *length) {
+            *length = readf;
+        }
     }
-    if (readf < *length) {
-        *length = readf;
+
+    if (data != NULL) {
+        *buf = malloc(*length);
+        memcpy(*buf, data + offset, *length);
     }
 
     return 0;
 }
 
+#if 0
 /*
  * Create send buffer containing everything to send for the current window
  * and the status.
  */
 static int
-make_window(window_entry **w,
+make_window(pkt_t **,
     size_t seqnum,
     size_t *expected_seqnum,
     size_t window,
@@ -176,6 +135,7 @@ send_window(int socket, window_entry **w, size_t offset, size_t window)
     temp_buf = NULL;
     return 0;
 }
+#endif
 
 
 int
@@ -248,6 +208,11 @@ main(int argc, char **argv)
     size_t nb_packets = nb_pkt_in_buffer(total_len);
 
     printf("amount of packets needed for %zu bytes read will be %zu\n", total_len, nb_packets);
+
+    char *tmp = NULL;
+    size_t len = 8;
+    get_payload(&tmp, f, data, 10, &len);
+    printf("stdin buf from byte 10 to 18 is [%s]\n", tmp);
 
     /* XXX DATA TRANSFER TO IMPLEMENT XXX */
 
