@@ -15,10 +15,10 @@ REC_OBJS = src/receiver.c src/utils.c src/pkt.c src/net.c
 SEND_OBJS= src/sender.c src/utils.c src/pkt.c src/net.c
 
 receiver:
-	${CC} ${CFLAGS} ${REC_OBJS} -o receiver ${LDFLAGS}
+	${CC} ${CFLAGS} ${REC_OBJS} -DPROGRAM_NAME=\"receiver\" -o receiver ${LDFLAGS}
 
 sender:
-	${CC} ${CFLAGS} ${SEND_OBJS} -o sender ${LDFLAGS}
+	${CC} ${CFLAGS} ${SEND_OBJS} -DPROGRAM_NAME=\"sender\" -o sender ${LDFLAGS}
 
 test:
 	@echo "\033[0;32mTesting with X delay\033[0m"	

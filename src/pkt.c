@@ -174,7 +174,7 @@ pkt_get_payload(const pkt_t *pkt)
 pkt_status_code
 pkt_set_type(pkt_t *pkt, const ptypes_t type)
 {
-    if (type != PTYPE_DATA && type != PTYPE_ACK) {
+    if (type != PTYPE_DATA && type != PTYPE_ACK && type != PTYPE_NACK) {
         return E_TYPE;
     } else {
         pkt->header.type = type;
@@ -185,8 +185,12 @@ pkt_set_type(pkt_t *pkt, const ptypes_t type)
 pkt_status_code
 pkt_set_tr(pkt_t *pkt, const uint8_t tr)
 {
-    pkt->header.tr = tr;
-    return PKT_OK;
+    if (tr > 1) {
+        return E_TR;
+    } else {
+        pkt->header.tr = tr;
+        return PKT_OK;
+    }
 }
 
 pkt_status_code

@@ -50,9 +50,6 @@
 #define IP_LENGTH           INET6_ADDRSTRLEN
 #define IP_ANY              "::"
 
-#define SENDER_PROGNAME     "sender"
-#define RECEIVER_PROGNAME   "receiver"
-
 /*
  *
  * Data Types

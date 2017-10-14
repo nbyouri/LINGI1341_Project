@@ -13,7 +13,7 @@
 void
 help()
 {
-    INFO("[-f <filename>] <address> <port>\n");
+    printf("%s: [-f <filename>] <address> <port>\n", PROGRAM_NAME);
 }
 
 /*
