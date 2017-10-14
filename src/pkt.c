@@ -26,7 +26,7 @@ pkt_del(pkt_t *pkt)
 pkt_status_code
 pkt_decode(const char *data, const size_t len, pkt_t *pkt)
 {
-    unsigned int read = 0;
+    uint32_t read = 0;
 
     /* copy the header */
     memcpy(pkt, data, sizeof(pkt->header));
@@ -300,8 +300,8 @@ pkt_to_string(const pkt_t *pkt)
 size_t
 nb_pkt_in_buffer(const ssize_t bytes)
 {
-    unsigned int nb_packets = 0;
-    unsigned int payload_space = (bytes / MAX_PAYLOAD_SIZE);
+    uint32_t nb_packets = 0;
+    uint32_t payload_space = (bytes / MAX_PAYLOAD_SIZE);
 
     if (payload_space == 0) {
         nb_packets = 1;

@@ -234,13 +234,14 @@ main(int argc, char **argv)
 
     /* get data */
     size_t total_len = 0;
-    FILE *f = have_file ? open_file(filename, 0) : stdin;
-
+    FILE *f = NULL;
+    char *data = NULL;
     if (have_file) {
+        f = open_file(filename, 0);
         total_len = file_size(f);
     } else {
-        char *buf = NULL;
-        total_len = read_stdin(&buf);
+        data = NULL;
+        total_len = read_stdin(&data);
     }
 
     /* get amount of packets needed */
@@ -254,6 +255,9 @@ main(int argc, char **argv)
     /* cleanup and exit */
     if (have_file) {
         fclose(f);
+    } else {
+        free(data);
+        data = NULL;
     }
     close(sfd);
 

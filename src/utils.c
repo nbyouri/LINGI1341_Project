@@ -132,7 +132,7 @@ read_stdin(char **buf)
         size_t read = fread(*buf + len, sizeof(char), BUFSIZ, stdin);
         read *= sizeof(char);
         *buf = realloc(*buf, len + read);
-        if (buf == NULL) {
+        if (*buf == NULL) {
             ERROR("Failed to realloc buffer for stdin\n");
             return E_NOMEM;
         }
