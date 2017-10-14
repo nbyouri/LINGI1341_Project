@@ -1,5 +1,5 @@
 CC      = cc
-CFLAGS += -Wall # Enable the 'all' set of warnings
+CFLAGS += -g -Wall # Enable the 'all' set of warnings
 #CFLAGS += -Werror # Treat all warnings as error
 CFLAGS += -Wshadow # Warn when shadowing variables
 CFLAGS += -Wextra # Enable additional warnings

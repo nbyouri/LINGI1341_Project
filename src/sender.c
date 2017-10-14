@@ -36,6 +36,7 @@ free_window(window_entry **w, size_t nelem)
 {
     size_t i = 0;
     for (; i < nelem; i++) {
+        pkt_del(w[i]->pkt);
         free(w[i]);
         w[i] = NULL;
     }
@@ -234,13 +235,18 @@ main(int argc, char **argv)
     /* get data */
     size_t total_len = 0;
     FILE *f = have_file ? open_file(filename, 0) : stdin;
-    /* XXX stdin */
-    total_len = file_size(f);
+
+    if (have_file) {
+        total_len = file_size(f);
+    } else {
+        char *buf = NULL;
+        total_len = read_stdin(&buf);
+    }
 
     /* get amount of packets needed */
     size_t nb_packets = nb_pkt_in_buffer(total_len);
 
-    printf("amount of packets needed for %zu will be %zu\n", total_len, nb_packets);
+    printf("amount of packets needed for %zu bytes read will be %zu\n", total_len, nb_packets);
 
     /* XXX DATA TRANSFER TO IMPLEMENT XXX */
 

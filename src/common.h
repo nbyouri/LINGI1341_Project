@@ -107,6 +107,7 @@ size_t              read_file(FILE *, char **, size_t);
 int                 write_file(FILE *, const char *, size_t);
 int                 file_size(FILE *);
 int                 file_set_position(FILE *, size_t);
+size_t              read_stdin(char **);
 
 /* pkt.c function prototypes */
 pkt_t*              pkt_new();

@@ -114,3 +114,29 @@ file_set_position(FILE *f, size_t pos)
 {
     return fseek(f, pos, SEEK_SET);
 }
+
+/*
+ * Read from stdin until EOF is reached
+ *
+ */
+size_t
+read_stdin(char **buf)
+{
+    *buf = malloc(BUFSIZ);
+    if (*buf == NULL) {
+        ERROR("Failed to malloc *buf\n");
+        return E_NOMEM;
+    }
+    size_t len = 0;
+    while (!feof(stdin)) {
+        size_t read = fread(*buf + len, sizeof(char), BUFSIZ, stdin);
+        read *= sizeof(char);
+        *buf = realloc(*buf, len + read);
+        if (buf == NULL) {
+            ERROR("Failed to realloc buffer for stdin\n");
+            return E_NOMEM;
+        }
+        len += read;
+    }
+    return len;
+}
