@@ -74,7 +74,7 @@ open_file(const char *path, int append)
 size_t
 read_file(FILE *f, char **buf, size_t length)
 {
-    *buf = malloc(length);
+    *buf = realloc(*buf, length);
     if (buf == NULL) {
 	ERROR("Failed to allocate memory.\n");
 	return 0;

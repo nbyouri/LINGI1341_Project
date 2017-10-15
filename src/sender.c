@@ -18,7 +18,7 @@ static int
 get_payload(char **buf, FILE *f, char *data, size_t offset, size_t *length)
 {
     if (f != NULL) {
-        *buf = realloc(*buf, *length);
+        *buf = malloc(*buf, *length);
         if (*buf == NULL) {
             return -1;
         }
