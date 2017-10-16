@@ -74,11 +74,6 @@ open_file(const char *path, int append)
 size_t
 read_file(FILE *f, char **buf, size_t length)
 {
-    *buf = realloc(*buf, length);
-    if (buf == NULL) {
-	ERROR("Failed to allocate memory.\n");
-	return 0;
-    }
     return fread(*buf, sizeof(char), length, f);
 }
 
@@ -116,7 +111,7 @@ file_set_position(FILE *f, size_t pos)
 }
 
 /*
- * Read from stdin until EOF is reached
+ * Read from stdin until EOF is reached and return amount of bytes read
  *
  */
 size_t
