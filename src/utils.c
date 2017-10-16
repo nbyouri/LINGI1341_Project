@@ -135,3 +135,55 @@ read_stdin(char **buf)
     }
     return len;
 }
+/* 
+* Compare two timeval, return left > right
+*
+*/
+int 
+timeval_cmp(const struct timeval *left, const struct timeval *right)
+{
+	return left->tv_sec == right->tv_sec ?
+		left->tv_usec > right->tv_usec :
+		left->tv_sec > right->tv_sec;
+}
+/*
+*  Get difference between to timeval ( c = a - b )
+*
+*/
+void
+timeval_diff(const struct timeval *a, const struct timeval *b, struct timeval *c)
+{
+	c->tv_sec = a->tv_sec - b->tv_sec;
+	c->tv_usec = a->tv_usec - b->tv_usec;
+	if (c->tv_usec < 0) {
+		if (--c->tv_sec)
+			c->tv_usec += 1000000;
+	}
+}
+
+
+/*
+* Update a timeval to the current time
+*
+*/
+void
+update_time(struct timeval *clock)
+{
+#ifdef __APPLE__
+	if (gettimeofday(clock, NULL)) {
+		ERROR("Cannot get internal clock\n");
+		exit(EXIT_FAILURE);		
+	}
+#else
+	struct timespec ts;
+	if (clock_gettime(CLOCK_MONOTONIC, &ts)) {
+		ERROR("Cannot get internal clock\n");
+		exit(EXIT_FAILURE);		
+	}
+	clock->tv_sec = ts.tv_sec;
+	clock->tv_usec = ts.tv_nsec/1000;
+#endif
+		
+}
+
+
