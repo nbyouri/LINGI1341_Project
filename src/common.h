@@ -24,6 +24,8 @@
 #include <errno.h>
 #include <zlib.h>
 #include <netdb.h>
+#include <sys/time.h>
+#include <time.h>
 
 /*
  *
@@ -49,7 +51,7 @@
 #define IP_VERSION          AF_INET6
 #define IP_LENGTH           INET6_ADDRSTRLEN
 #define IP_ANY              "::"
-
+#define MAX_TIMEOUT	    2
 /*
  *
  * Data Types
@@ -108,7 +110,9 @@ int                 write_file(FILE *, const char *, size_t);
 int                 file_size(FILE *);
 int                 file_set_position(FILE *, size_t);
 size_t              read_stdin(char **);
-
+int		    timeval_cmp(const struct timeval *left, const struct timeval *right);
+void 	            timeval_diff(const struct timeval *a, const struct timeval *b, struct timeval *c);
+void	            update_time(struct timeval *clock);
 /* pkt.c function prototypes */
 pkt_t*              pkt_new();
 void                pkt_del(pkt_t *);
