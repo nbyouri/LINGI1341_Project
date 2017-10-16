@@ -17,13 +17,13 @@
 static int
 get_payload(char **buf, FILE *f, char *data, size_t offset, size_t *length)
 {
-    if (f != NULL) {
-        *buf = malloc(*length);
-        if (*buf == NULL) {
-            return -1;
-        }
-        memset(*buf, '\0', *length);
+    *buf = malloc(*length);
+    if (*buf == NULL) {
+        return -1;
+    }
+    memset(*buf, '\0', *length);
 
+    if (f != NULL) {
         file_set_position(f, offset);
         size_t readf = read_file(f, buf, *length);
         if (readf <= 0) {
@@ -36,7 +36,6 @@ get_payload(char **buf, FILE *f, char *data, size_t offset, size_t *length)
     }
 
     if (data != NULL) {
-        *buf = malloc(*length);
         memcpy(*buf, data + offset, *length);
     }
 
