@@ -11,8 +11,8 @@ LDFLAGS+= -lz
 
 all: clean receiver sender
 
-REC_OBJS = src/receiver.c src/utils.c src/pkt.c src/net.c
-SEND_OBJS= src/sender.c src/utils.c src/pkt.c src/net.c
+REC_OBJS = src/receiver.c src/utils.c src/pkt.c src/net.c src/min_queue.c src/min_queue.h
+SEND_OBJS= src/sender.c src/utils.c src/pkt.c src/net.c src/min_queue.c src/min_queue.h
 
 receiver:
 	${CC} ${CFLAGS} ${REC_OBJS} -DPROGRAM_NAME=\"receiver\" -o receiver ${LDFLAGS}
