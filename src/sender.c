@@ -42,6 +42,26 @@ get_payload(char **buf, FILE *f, char *data, size_t offset, size_t *length)
     return 0;
 }
 
+/*
+ * Main send loop
+ */
+static void
+send_data(FILE *f, char *data, size_t total_len, int sfd)
+{
+    /* Start by finding out how many packets we need to send in total */
+    size_t total_pkt_to_send = nb_pkt_in_buffer(total_len);
+
+    minqueue_t *pkt_queue = NULL;
+
+    /* Initialize sender priority queue */
+    if (!(pkt_queue = minq_new(pkt_cmp)))
+        ERROR("Failed to initialize PQ");
+
+
+    /* Cleanup the Priority Queue */
+    minq_del(pkt_queue);
+}
+
 #if 0
 /*
  * Create send buffer containing everything to send for the current window
@@ -204,6 +224,7 @@ main(int argc, char **argv)
         total_len = read_stdin(&data);
     }
 
+#if 0
     /* get amount of packets needed */
     size_t nb_packets = nb_pkt_in_buffer(total_len);
 
@@ -216,8 +237,9 @@ main(int argc, char **argv)
     get_payload(&tmp, f, data, 18, &total_len);
     free(tmp);
     tmp = NULL;
+#endif
 
-    /* XXX DATA TRANSFER TO IMPLEMENT XXX */
+    send_data(f, data, total_len, sfd);
 
 
     /* cleanup and exit */

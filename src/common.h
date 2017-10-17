@@ -27,6 +27,8 @@
 #include <sys/time.h>
 #include <time.h>
 
+#include "min_queue.h"
+
 /*
  *
  * Utility Macros
@@ -111,8 +113,12 @@ int                 file_size(FILE *);
 int                 file_set_position(FILE *, size_t);
 size_t              read_stdin(char **);
 int		    timeval_cmp(const struct timeval *left, const struct timeval *right);
-void 	            timeval_diff(const struct timeval *a, const struct timeval *b, struct timeval *c);
+void	            timeval_diff(const struct timeval *a, const struct timeval *b, struct timeval *c);
+int                 pkt_cmp(const void *, const void *);
 void	            update_time(struct timeval *clock);
+uint32_t            pack_timestamp(struct timeval);
+struct timeval      unpack_timestamp(uint32_t);
+
 /* pkt.c function prototypes */
 pkt_t*              pkt_new();
 void                pkt_del(pkt_t *);

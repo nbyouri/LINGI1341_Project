@@ -135,21 +135,23 @@ read_stdin(char **buf)
     }
     return len;
 }
-/* 
-* Compare two timeval, return left > right
-*
-*/
-int 
+
+/*
+ * Compare two timeval, return left > right
+ *
+ */
+int
 timeval_cmp(const struct timeval *left, const struct timeval *right)
 {
 	return left->tv_sec == right->tv_sec ?
 		left->tv_usec > right->tv_usec :
 		left->tv_sec > right->tv_sec;
 }
+
 /*
-*  Get difference between to timeval ( c = a - b )
-*
-*/
+ *  Get difference between to timeval ( c = a - b )
+ *
+ */
 void
 timeval_diff(const struct timeval *a, const struct timeval *b, struct timeval *c)
 {
@@ -163,27 +165,72 @@ timeval_diff(const struct timeval *a, const struct timeval *b, struct timeval *c
 
 
 /*
-* Update a timeval to the current time
-*
-*/
+ * Update a timeval to the current time
+ *
+ */
 void
 update_time(struct timeval *clock)
 {
 #ifdef __APPLE__
 	if (gettimeofday(clock, NULL)) {
 		ERROR("Cannot get internal clock\n");
-		exit(EXIT_FAILURE);		
+		exit(EXIT_FAILURE);
 	}
 #else
 	struct timespec ts;
 	if (clock_gettime(CLOCK_MONOTONIC, &ts)) {
 		ERROR("Cannot get internal clock\n");
-		exit(EXIT_FAILURE);		
+		exit(EXIT_FAILURE);
 	}
 	clock->tv_sec = ts.tv_sec;
 	clock->tv_usec = ts.tv_nsec/1000;
 #endif
-		
+
+}
+
+/*
+ * Compare packets based on their timestamp values
+ *
+ */
+int
+pkt_cmp(const void *a, const void *b)
+{
+    uint32_t left = ((pkt_t *)a)->header.timestamp;
+    uint32_t right = ((pkt_t *)b)->header.timestamp;
+
+    struct timeval time_left = unpack_timestamp(left);
+    struct timeval time_right = unpack_timestamp(right);
+
+    return timeval_cmp(&time_left, &time_right);
+}
+
+/*
+ * Pack timeval structure into a timestamp
+ *
+ */
+uint32_t
+pack_timestamp(struct timeval tv) {
+    uint32_t ts = 0;
+    /* Pack seconds on the first 8 bits */
+    if (tv.tv_sec > 255) {
+        return 0;
+    }
+    ts = tv.tv_sec << 24;
+    ts |= tv.tv_usec;
+    return ts;
+}
+/*
+ * Unpack timestamp to a timeval structure
+ *
+ */
+struct timeval
+unpack_timestamp(uint32_t ts) {
+    struct timeval tv;
+    /* First 8 bits contain the seconds */
+    tv.tv_sec = ts & 0xFF000000;
+    /* The remaining bits contain the microseconds */
+    tv.tv_usec = ts & 0xFFFFFF;
+    return tv;
 }
 
 
