@@ -53,12 +53,64 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 
     minqueue_t *pkt_queue = NULL;
 
-    /* Initialize sender priority queue */
+    /* Initialize Priority Queue */
     if (!(pkt_queue = minq_new(pkt_cmp)))
         ERROR("Failed to initialize PQ");
 
+    /* Start by building the first window */
+    /* We keep 16KB of data in memory always */
+    uint8_t seqnum = 0;
+    uint8_t window = 1;
+    size_t  nb_pkt = 0;
+    size_t  data_offset = 0;
+    char    *buf = NULL;
+    pkt_t *pkt = pkt_new();
+    struct timeval current_time = {.tv_sec = 0, .tv_usec = 0};
+
+    for (; nb_pkt < MAX_WINDOW_SIZE; nb_pkt++) {
+        if (nb_pkt >= total_pkt_to_send)
+            break;
+
+        pkt_set_type(pkt, PTYPE_DATA);
+        pkt_set_tr(pkt, 0);
+        pkt_set_seqnum(pkt, seqnum);
+        pkt_set_window(pkt, window);
+        update_time(&current_time);
+        pkt_set_timestamp(pkt, pack_timestamp(current_time));
+
+        size_t length = MAX_PAYLOAD_SIZE;
+        get_payload(&buf, f, data, data_offset, &length);
+        pkt_set_payload(pkt, buf, length);
+        pkt_set_crc1(pkt, pkt_gen_crc1(pkt));
+        pkt_set_crc2(pkt, pkt_gen_crc2(pkt));
+
+        minq_push(pkt_queue, pkt);
+
+        /* Bookkeeping */
+        data_offset += length;
+        if (seqnum + 1 >= MAX_SEQNUM)
+            seqnum = 0;
+        else seqnum++;
+
+        /* XXX update window value if needed */
+    }
+
+    buf = realloc(MAX_PKT_SIZE);
+    while (nb_pkt >= 0) {
+        if (nb_pkt == 0)
+            break;
+
+        memset(buf, '\0', MAX_PKT_SIZE);
+        // XXX iterate through priority queue ?
+        //if (pkt_encode(minqueue_peek))
+    }
+
+
 
     /* Cleanup the Priority Queue */
+    free(buf);
+    buf = NULL;
+    pkt_del(pkt);
     minq_del(pkt_queue);
 }
 

@@ -10,6 +10,20 @@
  */
 #include "common.h"
 
+static void
+receive_data(FILE *f, int sfd)
+{
+    pkt_t *pkt = pkt_new();
+    char  *buf = malloc(MAX_PKT_SIZE);
+
+    memset(buf, '\0', MAX_PKT_SIZE);
+
+
+    /* sent length = 0 packet to terminate connection */
+
+    pkt_del(pkt);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -67,7 +81,7 @@ main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    /* XXX RECEIVE THE DATA TO IMPLEMENT XXX */
+    receive_data(have_file ? f : stdout, sfd);
 
 #if 0
         /* treat data */
