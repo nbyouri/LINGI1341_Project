@@ -148,6 +148,7 @@ main(int argc, char **argv)
         while ((c = getopt(argc, argv, "f:")) != -1) {
             switch (c) {
             case 'f':
+                memset(filename, '\0', BUFSIZ);
                 memcpy(filename, optarg, strlen(optarg));
                 have_file = 1;
                 break;
@@ -208,10 +209,13 @@ main(int argc, char **argv)
 
     printf("amount of packets needed for %zu bytes read will be %zu\n", total_len, nb_packets);
 
-    char *tmp = NULL;
+    char *tmp = malloc(sizeof(char *));
     size_t len = 8;
     get_payload(&tmp, f, data, 10, &len);
     printf("stdin buf from byte 10 to 18 is [%s]\n", tmp);
+    get_payload(&tmp, f, data, 18, &total_len);
+    free(tmp);
+    tmp = NULL;
 
     /* XXX DATA TRANSFER TO IMPLEMENT XXX */
 
