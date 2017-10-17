@@ -10,18 +10,63 @@
  */
 #include "common.h"
 
+static pkt_t* pkt_reception(int nb_packet){
+	pkt_t* pkt = pkt_new();
+	if(nb_packet == 0){
+		pkt_set_seqnum(pkt,2);
+		pkt_set_payload(pkt," world",6);
+	}	
+	if(nb_packet == 1){
+		pkt_set_seqnum(pkt,1);
+		pkt_set_payload(pkt,"hello",5);	
+	}
+	if(nb_packet == 2){
+		pkt_set_seqnum(pkt,3);
+		pkt_set_length(pkt, 0);	
+	}
+	return pkt;
+}
+
 static void
 receive_data(FILE *f, int sfd)
 {
-    pkt_t *pkt = pkt_new();
-    char  *buf = malloc(MAX_PKT_SIZE);
+	size_t nb_packet = 0;
+	int finish = 0;
+	char  *buf = malloc(MAX_PKT_SIZE);
+	memset(buf, '\0', MAX_PKT_SIZE);
+	
+	minqueue_t* pkt_queue = NULL;
+	if (!(pkt_queue = minq_new(pkt_cmp_seqnum)))
+		ERROR("Failed to initialize PQ");
+	
+	while(!finish) {
+		/* Packets reception in priority queue */
+		for (; nb_packet < MAX_WINDOW_SIZE; nb_packet++) {
+		/*XXX method reception pkt*/
+			pkt_t *pkt = pkt_reception(nb_packet);
+			if(pkt_get_length(pkt) == 0) {
+				finish = 1;
+				break;
+			}
+				
+			minq_push(pkt_queue, pkt);
+			//pkt_del(pkt);
+			/*XXX method send ack */	
+		}
+		/* Empty the priority and append payload to the file*/
+		while (!minq_empty(pkt_queue)) {
+			if(pkt_get_length(minq_peek(pkt_queue)) == 0)
+				break;
+			fprintf(f, pkt_get_payload(minq_peek(pkt_queue)));
+			minq_pop(pkt_queue);        
+		}
 
-    memset(buf, '\0', MAX_PKT_SIZE);
-
-
+	}
+	
+	
     /* sent length = 0 packet to terminate connection */
 
-    pkt_del(pkt);
+   
 }
 
 int
@@ -82,7 +127,6 @@ main(int argc, char **argv)
     }
 
     receive_data(have_file ? f : stdout, sfd);
-
 #if 0
         /* treat data */
         LOG("Treating data");

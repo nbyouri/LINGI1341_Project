@@ -115,6 +115,7 @@ size_t              read_stdin(char **);
 int		    timeval_cmp(const struct timeval *left, const struct timeval *right);
 void	            timeval_diff(const struct timeval *a, const struct timeval *b, struct timeval *c);
 int                 pkt_cmp(const void *, const void *);
+int 		    pkt_cmp_seqnum(const void*, const void*);
 void	            update_time(struct timeval *clock);
 uint32_t            pack_timestamp(struct timeval);
 struct timeval      unpack_timestamp(uint32_t);
