@@ -203,6 +203,18 @@ pkt_cmp(const void *a, const void *b)
 
     return timeval_cmp(&time_left, &time_right);
 }
+/*
+ * Compare packets based on their timestamp values
+ *  return a seqnum > b seqnum;
+ */
+int
+pkt_cmp_seqnum(const void *a, const void *b)
+{
+	uint8_t left = ((pkt_t *)a)->header.seqnum;
+	uint8_t right = ((pkt_t *)b)->header.seqnum;
+	return left > right;
+}
+
 
 /*
  * Pack timeval structure into a timestamp

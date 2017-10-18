@@ -10,18 +10,89 @@
  */
 #include "common.h"
 
+static void 
+send_response (pkt_t* pkt, int sfd){
+	pkt_t* pkt_resp = pkt_new();	
+	uint8_t type = 0;
+	uint8_t seqnum = 0; 
+	if(pkt_get_tr(pkt) == 0){
+		type = PTYPE_ACK;
+		if(seqnum < MAX_SEQNUM)
+			seqnum = pkt_get_seqnum(pkt) + 1;
+	}
+	else {
+		type = PTYPE_NACK;
+		seqnum = pkt_get_seqnum(pkt);
+	}
+		
+	
+	pkt_resp = pkt_create(type, 0, seqnum, pkt_get_window(pkt), pkt_get_timestamp(pkt), 0, NULL);
+	/*XXX send packet**/ 	
+		
+}
+
+
+
+static pkt_t* 
+pkt_reception (int nb_packet){
+	pkt_t* pkt = pkt_new();
+	if(nb_packet == 0){
+		pkt = pkt_create(PTYPE_DATA, 0, 2, 1, 6, 0, "world");
+	}	
+	if(nb_packet == 1){
+		pkt = pkt_create(PTYPE_DATA, 0, 1, 1, 5, 0, "hello");
+	}
+	if(nb_packet == 2){
+		pkt = pkt_create(PTYPE_DATA, 0, 3, 1, 0, 0, NULL);
+	}
+	if(nb_packet == 3){
+		pkt = pkt_create(PTYPE_DATA, 0, 4, 1, 7, 0, "garbage");
+	}
+	return pkt;
+}
+
 static void
-receive_data(FILE *f, int sfd)
+receive_data (FILE *f, int sfd)
 {
-    pkt_t *pkt = pkt_new();
-    char  *buf = malloc(MAX_PKT_SIZE);
+	size_t nb_packet = 0;
+	int finish = 0;
+	char  *buf = malloc(MAX_PKT_SIZE);
+	memset(buf, '\0', MAX_PKT_SIZE);
+	
+	minqueue_t* pkt_queue = NULL;
+	if (!(pkt_queue = minq_new(pkt_cmp_seqnum)))
+		ERROR("Failed to initialize PQ");
+	
+	while(!finish) {
+		/* Packets reception in priority queue */
+		for (; nb_packet < MAX_WINDOW_SIZE; nb_packet++) {
+			/*method reception pkt here is just for testing */
+			pkt_t *pkt = pkt_reception(nb_packet);
+			/*XXX check the packet */			
+			minq_push(pkt_queue, pkt);
+			
+			/** XXX rework to break look */
+			if(pkt_get_length(pkt) == 0) {
+				finish = 1;
+				break;
+			}
+			/*XXX method send ack or nack */
+			send_response(pkt, sfd);	
+		}
+		/* Empty the priority and append payload to the file*/
+		while (!minq_empty(pkt_queue)) {
+			if(pkt_get_length(minq_peek(pkt_queue)) == 0)
+				break;
+			fprintf(f, pkt_get_payload(minq_peek(pkt_queue)));
+			minq_pop(pkt_queue);        
+		}
 
-    memset(buf, '\0', MAX_PKT_SIZE);
-
-
+	}
+	
+	
     /* sent length = 0 packet to terminate connection */
 
-    pkt_del(pkt);
+   
 }
 
 int
@@ -60,7 +131,7 @@ main(int argc, char **argv)
     } else if (have_file) {
         f = open_file(filename, 1);
     }
-
+	    receive_data(have_file ? f : stdout, 5);
     /* resolve the address */
     int port = parse_port(argv[1]);
     if (port == -1) {
@@ -81,7 +152,6 @@ main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    receive_data(have_file ? f : stdout, sfd);
 
 #if 0
         /* treat data */
