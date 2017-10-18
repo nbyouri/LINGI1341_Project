@@ -135,6 +135,7 @@ uint32_t            pkt_get_timestamp(const pkt_t *);
 uint32_t            pkt_get_crc1(const pkt_t *);
 uint32_t            pkt_get_crc2(const pkt_t *);
 const char*         pkt_get_payload(const pkt_t *);
+size_t              pkt_get_size(const pkt_t *);
 
 pkt_status_code     pkt_set_type(pkt_t *, const ptypes_t);
 pkt_status_code     pkt_set_tr(pkt_t *, const uint8_t);

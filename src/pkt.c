@@ -314,3 +314,12 @@ nb_pkt_in_buffer(const ssize_t bytes)
     }
     return nb_packets;
 }
+
+/*
+ * Get packet size
+ */
+size_t
+pkt_get_size(const pkt_t *pkt)
+{
+    return sizeof(pkt) + pkt_get_length(pkt) - sizeof(char *);
+}

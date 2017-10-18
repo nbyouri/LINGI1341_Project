@@ -206,7 +206,7 @@ pkt_cmp(const void *a, const void *b)
 
 /*
  * Pack timeval structure into a timestamp
- *
+ * XXX does not work on macos
  */
 uint32_t
 pack_timestamp(struct timeval tv) {
@@ -219,6 +219,7 @@ pack_timestamp(struct timeval tv) {
     ts |= tv.tv_usec;
     return ts;
 }
+
 /*
  * Unpack timestamp to a timeval structure
  *
@@ -232,5 +233,4 @@ unpack_timestamp(uint32_t ts) {
     tv.tv_usec = ts & 0xFFFFFF;
     return tv;
 }
-
 
