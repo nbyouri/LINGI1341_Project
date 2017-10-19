@@ -316,10 +316,11 @@ nb_pkt_in_buffer(const ssize_t bytes)
 }
 
 
-pkt_t* pkt_create(uint8_t type, uint8_t seqnum, uint8_t window,uint16_t length, char* payload){
+pkt_t* 
+pkt_create(uint8_t type, uint8_t tr, uint8_t seqnum, uint8_t window,uint16_t length, char* payload){
 	pkt_t* pkt = pkt_new();
 	pkt_set_type(pkt, type);
-        pkt_set_tr(pkt, 0);
+        pkt_set_tr(pkt, tr);
         pkt_set_seqnum(pkt, seqnum);
         pkt_set_window(pkt, window);
 	struct timeval current_time ={.tv_sec = 0, .tv_usec = 0};

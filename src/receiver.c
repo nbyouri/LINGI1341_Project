@@ -10,25 +10,49 @@
  */
 #include "common.h"
 
-static pkt_t* pkt_reception(int nb_packet){
+static void 
+send_response (pkt_t* pkt, int sfd){
+	pkt_t* pkt_resp = pkt_new();	
+	uint8_t type = 0;
+	uint8_t seqnum = 0; 
+	if(pkt_get_tr(pkt) == 0){
+		type = PTYPE_ACK;
+		if(seqnum < MAX_SEQNUM)
+			seqnum = pkt_get_seqnum(pkt) + 1;
+	}
+	else {
+		type = PTYPE_NACK;
+		seqnum = pkt_get_seqnum(pkt);
+	}
+		
+	
+	pkt_resp = pkt_create(type, 0, seqnum, pkt_get_window(pkt),0,NULL);
+	/*XXX send packet**/ 	
+		
+}
+
+
+
+static pkt_t* 
+pkt_reception (int nb_packet){
 	pkt_t* pkt = pkt_new();
 	if(nb_packet == 0){
-		pkt = pkt_create(PTYPE_DATA, 2, 1, 6, " world");
+		pkt = pkt_create(PTYPE_DATA, 0, 2, 1, 6, " world");
 	}	
 	if(nb_packet == 1){
-		pkt = pkt_create(PTYPE_DATA, 1, 1, 5, "hello");
+		pkt = pkt_create(PTYPE_DATA, 0, 1, 1, 5, "hello");
 	}
 	if(nb_packet == 2){
-		pkt = pkt_create(PTYPE_DATA, 3, 1, 0, NULL);
+		pkt = pkt_create(PTYPE_DATA, 0, 3, 1, 0, NULL);
 	}
 	if(nb_packet == 3){
-		pkt = pkt_create(PTYPE_DATA, 4, 1, 7, "carbage");
+		pkt = pkt_create(PTYPE_DATA, 0, 4, 1, 7, "garbage");
 	}
 	return pkt;
 }
 
 static void
-receive_data(FILE *f, int sfd)
+receive_data (FILE *f, int sfd)
 {
 	size_t nb_packet = 0;
 	int finish = 0;
@@ -46,11 +70,13 @@ receive_data(FILE *f, int sfd)
 			pkt_t *pkt = pkt_reception(nb_packet);
 			minq_push(pkt_queue, pkt);
 			
+			/** XXX rework to break look */
 			if(pkt_get_length(pkt) == 0) {
 				finish = 1;
 				break;
 			}
-			/*XXX method send ack */	
+			/*XXX method send ack or nack */
+			send_response(pkt, sfd);	
 		}
 		/* Empty the priority and append payload to the file*/
 		while (!minq_empty(pkt_queue)) {
