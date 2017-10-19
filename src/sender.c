@@ -44,7 +44,7 @@ get_payload(char **buf, FILE *f, char *data, size_t offset, size_t length)
         file_set_position(f, offset);
         size_t readf = fread(tmp, sizeof(char), length, f);
         if (readf <= 0) {
-            ERROR("Failed to read file\n");
+            ERROR("Failed to read file from byte %zu to %zu\n", offset, offset + length);
             return -1;
         }
     }
@@ -88,6 +88,8 @@ make_window(pkt_t *sliding_window[], FILE *f, char *data,
         size_t length = MAX_PAYLOAD_SIZE;
         if (*left_to_copy < MAX_PAYLOAD_SIZE)
             length = *left_to_copy;
+        if (length == 0) break; // XXX MEMORY LEAK
+        LOG("make_window: length = %zu, left_to_copy = %zu", length, *left_to_copy);
         buf = malloc(length);
 	memset(buf, '\0', length);
         get_payload(&buf, f, data, *data_offset, length);
@@ -144,6 +146,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 {
     /* Start by finding out how many packets we need to send in total */
     size_t total_pkt_to_send = nb_pkt_in_buffer(total_len);
+    LOG("We need to send %zu packages", total_pkt_to_send);
 
     /* Protocol variables */
     uint8_t  seqnum = 0;
@@ -153,7 +156,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
     size_t  left_to_copy = total_len;
     size_t  left_to_send = total_pkt_to_send;
     size_t  i = 0;
-    size_t  cur_seqnum = 0;
+    size_t  cur_seqnum = 0; // slot in the sending buffer FIXME stupid name
     int	    keep_sending = 1;
     pkt_t   *sliding_window[MAX_WINDOW_SIZE];
 
@@ -173,6 +176,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 	size_t len = MAX_PKT_SIZE;
 
         /* Send the packet */
+        LOG("Sending packet with seqnum %d", pkt_get_seqnum(sliding_window[cur_seqnum]));
 	if (window == 0) {
 		LOG("Window is full, we need some ACKs");
 	} else {
@@ -187,6 +191,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 		keep_sending = 0;
 	}
 	}
+        LOG("Sent packet");
 
 	/* Listen for an ACK XXX multiplex! */
 	char *response_buf = malloc(ACK_PKT_SIZE);
@@ -205,11 +210,22 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 		if (pkt_get_seqnum(ack) == cur_seqnum + 1) {
 			LOG("ACK for packet %zu\n", cur_seqnum);
 			left_to_send--;
+                        nb_pkt_win--;
 			if (left_to_send > 0) {
-				nb_pkt_win = MAX_WINDOW_SIZE;
 				cur_seqnum = seqnum = pkt_get_seqnum(ack);
 			} else {
 				keep_sending = 0;
+			}
+                        if (left_to_send > 0 && nb_pkt_win == 0) {
+                            make_window(sliding_window, f, data, &nb_pkt,
+                                        total_pkt_to_send, &data_offset,
+                                        &left_to_copy, &seqnum, window);
+                            LOG("make_window ok");
+                            if (left_to_send < MAX_WINDOW_SIZE)
+                                nb_pkt_win = left_to_send;
+                            else
+                                nb_pkt_win = MAX_WINDOW_SIZE;
+                            cur_seqnum %= MAX_WINDOW_SIZE;
 			}
 		} else {
 			LOG("Out of sequence ACK (%d)!", pkt_get_seqnum(ack));
