@@ -39,9 +39,8 @@ get_payload(char **buf, FILE *f, char *data, size_t offset, size_t length)
     char tmp[length];
     memset(tmp, 0, length);
     if (f != NULL) {
-        //file_set_position(f, offset);
+        file_set_position(f, offset);
         size_t readf = fread(tmp, sizeof(char), length, f);
-        printf("%s", tmp);
         if (readf <= 0) {
             ERROR("Failed to read file\n");
             return -1;
@@ -95,8 +94,8 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
         if (left_to_copy < MAX_PAYLOAD_SIZE)
             length = left_to_copy;
         buf = malloc(length);
+	memset(buf, '\0', length);
         get_payload(&buf, f, data, data_offset, length);
-        fprintf(stderr, "%zu -> %zu\n", data_offset, data_offset + length);
         pkt_set_payload(sliding_window[nb_pkt], buf, length);
         pkt_set_crc1(sliding_window[nb_pkt], pkt_gen_crc1(sliding_window[nb_pkt]));
         pkt_set_crc2(sliding_window[nb_pkt], pkt_gen_crc2(sliding_window[nb_pkt]));
@@ -110,14 +109,15 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 
         free(buf);
         buf = NULL;
-        //pkt_to_string(sliding_window[nb_pkt]);
     }
 
     /* Iterate through the sliding window */
-    for (size_t i = 0; i < nb_pkt; i++) {
+    size_t i = 0;
+    for (; i < nb_pkt; i++) {
         //printf("%d\n", pkt_get_length(sliding_window[i]));
-        //printf("%s", pkt_get_payload(sliding_window[i]));
-        pkt_to_string(sliding_window[i]);
+        printf("%s", pkt_get_payload(sliding_window[i]));
+        //pkt_to_string(sliding_window[i]);
+
     }
     //printf("%s", pkt_get_payload(sliding_window[5]));
 
@@ -132,6 +132,11 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
         memset(buf, '\0', MAX_PKT_SIZE);
     }
 #endif
+
+    /* Cleanup */
+    for (i = 0; i < nb_pkt; i++) {
+	pkt_del(sliding_window[i]);
+    }
 
 }
 
