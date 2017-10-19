@@ -63,7 +63,8 @@ get_payload(char **buf, FILE *f, char *data, size_t offset, size_t length)
  *
  */
 static void
-make_window(pkt_t *sliding_window[], FILE *f, char *data, size_t *nb_pkt, size_t total_pkt_to_send,
+make_window(pkt_t *sliding_window[], FILE *f, char *data,
+	    size_t *nb_pkt, size_t total_pkt_to_send,
 	    size_t *data_offset, size_t *left_to_copy,
 	    uint8_t *seqnum, uint8_t *window)
 {
@@ -112,7 +113,6 @@ make_window(pkt_t *sliding_window[], FILE *f, char *data, size_t *nb_pkt, size_t
  */
 static void
 send_terminating_packet(int sfd, uint8_t seqnum) {
-    /* Finish by sending a length = 0 packet */
     size_t len = sizeof(pkt_t);
     char *buf = malloc(len);
     pkt_t *end_pkt = pkt_new();
@@ -150,7 +150,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
     size_t  data_offset = 0;
     size_t  left_to_copy = total_len;
     size_t  i = 0;
-    size_t  cur_pkt = 0;
+    size_t  cur_seqnum = 0;
     int	    keep_sending = 1;
     pkt_t   *sliding_window[MAX_WINDOW_SIZE];
 
@@ -159,8 +159,8 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 		total_pkt_to_send, &data_offset,
 		&left_to_copy, &seqnum, &window);
 
-    /* Start encoding and sending the packets */
-    size_t nb_pkt_win = nb_pkt; // XXX wrap if more than 1 window
+    /* Main loop */
+    size_t nb_pkt_win = nb_pkt;
     while (keep_sending) {
 	if (nb_pkt_win == 0) {
 		keep_sending = 0;
@@ -168,22 +168,48 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 	}
     	char *buf = malloc(MAX_PKT_SIZE);
 	size_t len = MAX_PKT_SIZE;
+
+        /* Send the packet */
         memset(buf, '\0', MAX_PKT_SIZE);
-	if (pkt_encode(sliding_window[cur_pkt], buf, &len) != PKT_OK) {
-		ERROR("Failed to encode packet %zu\n", cur_pkt);
+	if (pkt_encode(sliding_window[cur_seqnum], buf, &len) != PKT_OK) {
+		ERROR("Failed to encode packet %zu\n", cur_seqnum);
 		keep_sending = 0;
 	}
 	
 	if (keep_sending && send(sfd, buf, len, 0) == -1) {
-		ERROR("Failed to send pkt %zu\n", cur_pkt);
+		ERROR("Failed to send pkt %zu\n", cur_seqnum);
 		keep_sending = 0;
 	}
+
+	/* Listen for an ACK XXX multiplex! */
+	char *response_buf = malloc(ACK_PKT_SIZE);
+	pkt_t *ack = pkt_new();
+        memset(response_buf, '\0', ACK_PKT_SIZE);
+	if (recv(sfd, response_buf, ACK_PKT_SIZE, 0) == -1) {
+		ERROR("Failed to receive an ack");
+		keep_sending = 0;
+	}
+	if (pkt_decode(response_buf, ACK_PKT_SIZE, ack) != PKT_OK) {
+		ERROR("Failed to decode ack");
+		keep_sending = 0;
+	}
+	/* XXX handle NACKs */
+	if (pkt_get_type(ack) == PTYPE_ACK) {
+		if (pkt_get_seqnum(ack) == cur_seqnum + 1) {
+			LOG("ACK for packet %zu\n", cur_seqnum);
+			cur_seqnum++;
+		} else {
+			LOG("Out of sequence ACK (%d)!", pkt_get_seqnum(ack));
+		}
+	}
+		
 	
-	/* XXX only do this when we get an ACK */
+	pkt_del(ack);
 	nb_pkt_win--;
-	cur_pkt++;
 	free(buf);
 	buf = NULL;
+	free(response_buf);
+	response_buf = NULL;
     }
 
     /* Cleanup */

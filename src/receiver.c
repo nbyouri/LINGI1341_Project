@@ -16,7 +16,7 @@ send_response (pkt_t* pkt, int sfd){
 	pkt_t* pkt_resp = pkt_new();	
 	uint8_t type = 0;
 	uint8_t seqnum = 0; 
-	if(pkt_get_tr(pkt) == 0){
+	if (pkt_get_tr(pkt) == 0){
 		type = PTYPE_ACK;
 	}
 	else {
@@ -30,15 +30,14 @@ send_response (pkt_t* pkt, int sfd){
 	pkt_create(pkt_resp, type, 0, seqnum, pkt_get_window(pkt), 0, NULL);
 	size_t len = ACK_PKT_SIZE;
 	buf = malloc(len);
+	memset(buf, '\0', len);
 	if (pkt_encode(pkt_resp, buf, &len) != PKT_OK){
 		ERROR("Encode ACK/NACK packet failed");
-		close(sfd);
-		exit(EXIT_FAILURE);
+		return;
 	} 
 	if (send(sfd, buf, len, 0) == -1) {
 		ERROR("Send ACK/NACK packet failed");
-		close(sfd);
-		exit(EXIT_FAILURE);
+		return;
 	} 	
 		
 }
@@ -109,7 +108,7 @@ receive_data (FILE *f, int sfd)
 					return;
 				}
 				/*XXX method send ack or nack */
-				//send_response(pkt, sfd);	
+				send_response(pkt, sfd);	
 			}			
 		}
 		/* Empty the priority and append payload to the file*/
