@@ -10,6 +10,7 @@
  */
 #include "common.h"
 
+#if 0
 /*
  * Add a packet to an array following the sliding window model
  */
@@ -29,6 +30,7 @@ static pkt_t
 array_peek(pkt_t *a, size_t size) {
     return a[size - 1];
 }
+#endif
 
 /*
  * Read the file or a buffer from offset and during length bytes onto buf
@@ -142,12 +144,30 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 	free(buf);
 	buf = NULL;
     }
-
     /* Cleanup */
     for (i = 0; i < nb_pkt; i++) {
 	pkt_del(sliding_window[i]);
     }
 
+    /* Finish by sending a length = 0 packet */
+    size_t len = sizeof(pkt_t);
+    char *buf = malloc(len);
+    pkt_t *end_pkt = pkt_new();
+    pkt_set_type(end_pkt, PTYPE_DATA);
+    pkt_set_seqnum(end_pkt, seqnum); 
+    if (pkt_encode(end_pkt, buf, &len) != PKT_OK) {
+	ERROR("Failed to encode end_pkt");
+	goto end;
+    }
+    if (send(sfd, buf, sizeof(pkt_t), 0) == -1) {
+	ERROR("Failed to send end_pkt");
+	goto end;	
+    }
+
+end:
+    pkt_del(end_pkt);
+    free(buf);
+    buf = NULL;   
 }
 
 #if 0

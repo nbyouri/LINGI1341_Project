@@ -10,6 +10,7 @@
  */
 #include "common.h"
 
+#if 0
 static void 
 send_response (pkt_t* pkt, int sfd){
 	char* buf = NULL;
@@ -18,13 +19,13 @@ send_response (pkt_t* pkt, int sfd){
 	uint8_t seqnum = 0; 
 	if(pkt_get_tr(pkt) == 0){
 		type = PTYPE_ACK;
-		if(seqnum < MAX_SEQNUM)
-			seqnum = pkt_get_seqnum(pkt) + 1;
 	}
 	else {
 		type = PTYPE_NACK;
-		seqnum = pkt_get_seqnum(pkt);
 	}
+	if (seqnum + 1 >= MAX_SEQNUM)
+		seqnum = 0;
+	else seqnum = pkt_get_seqnum(pkt) + 1;
 		
 	/**XXX add timestamp */
 	pkt_create(pkt_resp, type, 0, seqnum, pkt_get_window(pkt), 0, NULL);
@@ -44,8 +45,10 @@ send_response (pkt_t* pkt, int sfd){
 		
 }
 
+#endif
 
 
+#if 0
 static void
 pkt_reception (pkt_t* pkt, int nb_packet, char* buf, size_t* len){
 	if(nb_packet == 0){
@@ -65,16 +68,16 @@ pkt_reception (pkt_t* pkt, int nb_packet, char* buf, size_t* len){
 	if(nb_packet == 4){
 		pkt_create(pkt, PTYPE_DATA, 0, 4, 1, 7, "garbage");
 	}
-	pkt_encode((const pkt_t*)pkt, buf, &len);
+	pkt_encode(pkt, buf, *len);
 	
 }
+#endif
 
 static void
 receive_data (FILE *f, int sfd)
 {
 	pkt_status_code status = 0;
 	size_t nb_packet = 0;
-	size_t len = 0;
 	int finish = 0;
 	char  *buf = malloc(MAX_PKT_SIZE);
 	memset(buf, '\0', MAX_PKT_SIZE);
@@ -83,6 +86,7 @@ receive_data (FILE *f, int sfd)
 	if (!(pkt_queue = minq_new(pkt_cmp_seqnum)))
 		ERROR("Failed to initialize PQ");
 	
+	LOG("Q initialized, receiving start");
 	while(!finish) {
 		/* Packets reception in priority queue */
 		for (; nb_packet < MAX_WINDOW_SIZE; nb_packet++) {
@@ -92,13 +96,21 @@ receive_data (FILE *f, int sfd)
 			len = sizeof(pkt_t) + pkt_get_length(pkt) - sizeof(pkt->payload);
 */			
 			/* Receive date */
-			recv(sfd, buf, MAX_PKT_SIZE, 0);
+			ssize_t read = recv(sfd, buf, MAX_PKT_SIZE, 0);
+			if (read == -1) {
+				ERROR("Failed to receive");
+				break;
+			}
+			LOG("Received a packet of size %zu", read);
 			/*Treat data */
 			pkt_t* pkt = pkt_new();
-			status = pkt_decode((const char*)buf, len, pkt);
+			status = pkt_decode((const char*)buf, read, pkt);
 			/*XXX check the packet */
 			if (status == PKT_OK) {
-				minq_push(pkt_queue, pkt);
+				if (minq_push(pkt_queue, pkt)) {
+					ERROR("Failed to add pkt to queue.");
+					return;
+				}
 			
 				/** XXX rework to break look */
 				if(pkt_get_length(pkt) == 0) {
@@ -106,15 +118,17 @@ receive_data (FILE *f, int sfd)
 					break;
 				}
 				/*XXX method send ack or nack */
-				send_response(pkt, sfd);	
+				//send_response(pkt, sfd);	
 			}			
 			
 		}
 		/* Empty the priority and append payload to the file*/
 		while (!minq_empty(pkt_queue)) {
-			if(pkt_get_length(minq_peek(pkt_queue)) == 0)
+			const pkt_t *pkt = (const pkt_t *)minq_peek(pkt_queue);
+			size_t len = pkt_get_length(pkt);
+			if (len == 0)
 				break;
-			write_file(f, pkt_get_payload(minq_peek(pkt_queue)), pkt_get_length(minq_peek(pkt_queue)));
+			write_file(f, pkt_get_payload(pkt), len);
 			minq_pop(pkt_queue);        
 		}
 
@@ -123,6 +137,7 @@ receive_data (FILE *f, int sfd)
 	
     /* sent length = 0 packet to terminate connection */
 
+	/* FIXME free PQ */
    
 }
 
