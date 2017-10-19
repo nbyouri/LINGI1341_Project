@@ -218,7 +218,7 @@ pkt_cmp_seqnum(const void *a, const void *b)
 
 /*
  * Pack timeval structure into a timestamp
- * XXX does not work on macos
+ * FIXME maybe don't use current time?
  */
 uint32_t
 pack_timestamp(struct timeval tv) {

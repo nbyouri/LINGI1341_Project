@@ -72,11 +72,16 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
     size_t  nb_pkt = 0;
     size_t  data_offset = 0;
     size_t  left_to_copy = total_len;
+    size_t  i = 0;
+    size_t  cur_pkt = 0;
+    int	    keep_sending = 1;
     pkt_t   *sliding_window[MAX_WINDOW_SIZE];
     struct timeval current_time = {.tv_sec = 0, .tv_usec = 0};
 
     /* XXX start by initializing */
+    /* XXX put this in a loop for files bigger than 16kb -> seqnum wrap around */
     for (; nb_pkt < MAX_WINDOW_SIZE; nb_pkt++) {
+	/* stop if the window size is bigger than file size */
         if (nb_pkt >= total_pkt_to_send)
             break;
 
@@ -111,27 +116,32 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
         buf = NULL;
     }
 
-    /* Iterate through the sliding window */
-    size_t i = 0;
-    for (; i < nb_pkt; i++) {
-        //printf("%d\n", pkt_get_length(sliding_window[i]));
-        printf("%s", pkt_get_payload(sliding_window[i]));
-        //pkt_to_string(sliding_window[i]);
-
-    }
-    //printf("%s", pkt_get_payload(sliding_window[5]));
-
-
     /* Start encoding and sending the packets */
-#if 0
-    buf = realloc(buf, MAX_PKT_SIZE);
-    while (nb_pkt >= 0) {
-        if (nb_pkt == 0)
-            break;
-
+    size_t nb_pkt_win = nb_pkt; // XXX wrap if more than 1 window
+    while (keep_sending) {
+	if (nb_pkt_win == 0) {
+		keep_sending = 0;
+		continue;
+	}
+    	char *buf = malloc(MAX_PKT_SIZE);
+	size_t len = MAX_PKT_SIZE;
         memset(buf, '\0', MAX_PKT_SIZE);
+	if (pkt_encode(sliding_window[cur_pkt], buf, &len) != PKT_OK) {
+		ERROR("Failed to encode packet %zu\n", cur_pkt);
+		keep_sending = 0;
+	}
+	
+	if (keep_sending && send(sfd, buf, len, 0) == -1) {
+		ERROR("Failed to send pkt %zu\n", cur_pkt);
+		keep_sending = 0;
+	}
+	
+	/* XXX only do this when we get an ACK */
+	nb_pkt_win--;
+	cur_pkt++;
+	free(buf);
+	buf = NULL;
     }
-#endif
 
     /* Cleanup */
     for (i = 0; i < nb_pkt; i++) {
@@ -302,21 +312,7 @@ main(int argc, char **argv)
         total_len = read_stdin(&data);
     }
 
-#if 0
-    /* get amount of packets needed */
-    size_t nb_packets = nb_pkt_in_buffer(total_len);
-
-    printf("amount of packets needed for %zu bytes read will be %zu\n", total_len, nb_packets);
-
-    char *tmp = malloc(sizeof(char *));
-    size_t len = 8;
-    get_payload(&tmp, f, data, 10, &len);
-    printf("stdin buf from byte 10 to 18 is [%s]\n", tmp);
-    get_payload(&tmp, f, data, 18, &total_len);
-    free(tmp);
-    tmp = NULL;
-#endif
-
+    /* start sending the data */
     send_data(f, data, total_len, sfd);
 
 
