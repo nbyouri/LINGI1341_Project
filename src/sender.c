@@ -206,7 +206,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 	}
 	/* XXX handle NACKs */
 	if (pkt_get_type(ack) == PTYPE_ACK) {
-		if (pkt_get_seqnum(ack) == cur_seqnum + 1) {
+		if (pkt_get_seqnum(ack) == (cur_seqnum == MAX_SEQNUM - 1) ? 0 : cur_seqnum + 1) {
 			LOG("ACK for packet %zu\n", cur_seqnum);
 			left_to_send--;
                         nb_pkt_win--;
@@ -226,7 +226,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 			}
                         cur_slot %= MAX_WINDOW_SIZE;
 		} else {
-			LOG("Out of sequence ACK (%d)!", pkt_get_seqnum(ack));
+			LOG("Out of sequence ACK (%d), %zu!", pkt_get_seqnum(ack), cur_seqnum);
 		}
 	}
 
