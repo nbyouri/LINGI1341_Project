@@ -27,6 +27,7 @@ send_response (pkt_t* pkt, int sfd){
 		
 	
 	pkt_resp = pkt_create(type, 0, seqnum, pkt_get_window(pkt),0,NULL);
+	pkt_set_timestamp(pkt_resp, pkt_get_timestamp(pkt));
 	/*XXX send packet**/ 	
 		
 }
