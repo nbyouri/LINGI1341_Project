@@ -325,14 +325,12 @@ pkt_get_size(const pkt_t *pkt)
 }
 
 void
-pkt_create(pkt_t* pkt, uint8_t type, uint8_t tr, uint8_t seqnum, uint8_t window,uint16_t length, char* payload){
+pkt_create(pkt_t* pkt, uint8_t type, uint8_t tr, uint8_t seqnum, uint8_t window,uint16_t length, uint32_t timestamp, char* payload){
 	pkt_set_type(pkt, type);
         pkt_set_tr(pkt, tr);
         pkt_set_seqnum(pkt, seqnum);
         pkt_set_window(pkt, window);
-	struct timeval current_time ={.tv_sec = 0, .tv_usec = 0};
-        update_time(&current_time);
-        pkt_set_timestamp(pkt, pack_timestamp(current_time));
+        pkt_set_timestamp(pkt, timestamp);
         pkt_set_payload(pkt, payload, length);
         pkt_set_crc1(pkt, pkt_gen_crc1(pkt));
         pkt_set_crc2(pkt, pkt_gen_crc2(pkt));

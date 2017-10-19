@@ -27,7 +27,7 @@ send_response (pkt_t* pkt, int sfd, uint8_t window){
 	else seqnum = (pkt_get_seqnum(pkt) + 1)% (MAX_WINDOW_SIZE+1);
 		
 	/**XXX add timestamp */
-	pkt_create(pkt_resp, type, 0, seqnum, window, 0, NULL);
+	pkt_create(pkt_resp, type, 0, seqnum, window, 0, pkt_get_timestamp(pkt), NULL);
 	size_t len = ACK_PKT_SIZE;
 	buf = malloc(len);
 	memset(buf, '\0', len);
@@ -48,7 +48,8 @@ receive_data (FILE *f, int sfd)
 {
 	pkt_status_code status = 0;
 	size_t nb_packet = 0;
-	int finish = 0;
+	int keep_receiving = 1;
+	uint8_t last_seqnum = 0;
 	uint8_t window = MAX_WINDOW_SIZE;
 	minqueue_t* pkt_queue = NULL;
 	if (!(pkt_queue = minq_new(pkt_cmp_seqnum))) {
@@ -56,10 +57,10 @@ receive_data (FILE *f, int sfd)
 		return;
 	}
 	
-	while (!finish) {
+	while (keep_receiving) {
 		/* Packets reception in priority queue */
 		for (; nb_packet < MAX_WINDOW_SIZE; nb_packet++) {
-			if (finish) break;
+			if (!keep_receiving) break;
 			/* Receive data */
 			char buf[MAX_PKT_SIZE];
 			ssize_t read = recv(sfd, buf, MAX_PKT_SIZE, 0);
@@ -70,12 +71,11 @@ receive_data (FILE *f, int sfd)
 			/*Treat data */
 			pkt_t* pkt = pkt_new();
 			status = pkt_decode(buf, read, pkt);
-			/*XXX check the packet */
 			if (status == PKT_OK) {
 				
-				/** XXX rework to break look */
-				if(pkt_get_length(pkt) == 0) {
-					finish = 1;
+				/** XXX rework to break look => && last_seqnum == pkt_get_seqnum(pkt) */
+				if(pkt_get_length(pkt) == 0) { 
+					keep_receiving = 0;
 					pkt_del(pkt);
 					break;
 				}
@@ -83,7 +83,7 @@ receive_data (FILE *f, int sfd)
 					ERROR("Failed to add pkt to queue.");
 					return;
 				}
-				/*XXX method send ack or nack */
+				last_seqnum = pkt_get_seqnum(pkt);
 				send_response(pkt, sfd, --window);	
 			}			
 		}
