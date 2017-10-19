@@ -202,7 +202,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 	}
 	/* XXX handle NACKs */
 	if (pkt_get_type(ack) == PTYPE_ACK) {
-		if (pkt_get_seqnum(ack) == seqnum + 1) {
+		if (pkt_get_seqnum(ack) == cur_seqnum + 1) {
 			LOG("ACK for packet %zu\n", cur_seqnum);
 			left_to_send--;
 			if (left_to_send > 0) {
