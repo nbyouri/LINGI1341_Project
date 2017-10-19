@@ -13,15 +13,15 @@
 static pkt_t* pkt_reception(int nb_packet){
 	pkt_t* pkt = pkt_new();
 	if(nb_packet == 0){
-		pkt_set_seqnum(pkt,2);
+		pkt_set_seqnum(pkt,1);
 		pkt_set_payload(pkt," world",6);
 	}	
 	if(nb_packet == 1){
-		pkt_set_seqnum(pkt,1);
+		pkt_set_seqnum(pkt,3);
 		pkt_set_payload(pkt,"hello",5);	
 	}
 	if(nb_packet == 2){
-		pkt_set_seqnum(pkt,3);
+		pkt_set_seqnum(pkt,2);
 		pkt_set_length(pkt, 0);	
 	}
 	return pkt;
@@ -44,13 +44,12 @@ receive_data(FILE *f, int sfd)
 		for (; nb_packet < MAX_WINDOW_SIZE; nb_packet++) {
 		/*XXX method reception pkt*/
 			pkt_t *pkt = pkt_reception(nb_packet);
+			minq_push(pkt_queue, pkt);
+			//pkt_del(pkt);
 			if(pkt_get_length(pkt) == 0) {
 				finish = 1;
 				break;
 			}
-				
-			minq_push(pkt_queue, pkt);
-			//pkt_del(pkt);
 			/*XXX method send ack */	
 		}
 		/* Empty the priority and append payload to the file*/
@@ -105,7 +104,7 @@ main(int argc, char **argv)
     } else if (have_file) {
         f = open_file(filename, 1);
     }
-
+	    receive_data(have_file ? f : stdout, 5);
     /* resolve the address */
     int port = parse_port(argv[1]);
     if (port == -1) {
@@ -126,7 +125,7 @@ main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    receive_data(have_file ? f : stdout, sfd);
+
 #if 0
         /* treat data */
         LOG("Treating data");
