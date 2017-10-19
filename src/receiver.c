@@ -12,6 +12,7 @@
 
 static void 
 send_response (pkt_t* pkt, int sfd){
+	char* buf = NULL;
 	pkt_t* pkt_resp = pkt_new();	
 	uint8_t type = 0;
 	uint8_t seqnum = 0; 
@@ -27,7 +28,19 @@ send_response (pkt_t* pkt, int sfd){
 		
 	/**XXX add timestamp */
 	pkt_create(pkt_resp, type, 0, seqnum, pkt_get_window(pkt), 0, NULL);
-	/*XXX send packet**/ 	
+	/*XXX send packet**/
+	size_t len = 0;
+	buf = malloc(len);
+	if (pkt_encode((const pkt_t*)pkt_resp, buf, &len) != PKT_OK){
+		ERROR("Encode ACK/NACK packet failed");
+		close(sfd);
+		exit(EXIT_FAILURE);
+	} 
+	if (send(sfd, buf, len, 0) == -1) {
+		ERROR("Send ACK/NACK packet failed");
+		close(sfd);
+		exit(EXIT_FAILURE);
+	} 	
 		
 }
 
@@ -74,10 +87,14 @@ receive_data (FILE *f, int sfd)
 		/* Packets reception in priority queue */
 		for (; nb_packet < MAX_WINDOW_SIZE; nb_packet++) {
 			/*method reception pkt here is just for testing */
-			pkt_t* pkt = pkt_new();	
+/*        		pkt_t* pkt = pkt_new();	
 			pkt_reception(pkt, nb_packet, buf, &len);
 			len = sizeof(pkt_t) + pkt_get_length(pkt) - sizeof(pkt->payload);
+*/			
+			/* Receive date */
+			recv(sfd, buf, MAX_PKT_SIZE, 0);
 			/*Treat data */
+			pkt_t* pkt = pkt_new();
 			status = pkt_decode((const char*)buf, len, pkt);
 			/*XXX check the packet */
 			if (status == PKT_OK) {
@@ -88,7 +105,6 @@ receive_data (FILE *f, int sfd)
 					finish = 1;
 					break;
 				}
-
 				/*XXX method send ack or nack */
 				send_response(pkt, sfd);	
 			}			
@@ -146,7 +162,6 @@ main(int argc, char **argv)
     } else if (have_file) {
         f = open_file(filename, 1);
     }
-	    receive_data(have_file ? f : stdout, 5);
     /* resolve the address */
     int port = parse_port(argv[1]);
     if (port == -1) {
@@ -182,7 +197,7 @@ main(int argc, char **argv)
         }
         LOG("bytes_written = %zu", bytes_written);
 #endif
-
+    receive_data(have_file ? f : stdout, sfd);
     close(sfd);
 
 #if 0 /* XXX LINUX BUG? */
