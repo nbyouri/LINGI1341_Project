@@ -324,9 +324,8 @@ pkt_get_size(const pkt_t *pkt)
     return sizeof(pkt) + pkt_get_length(pkt) - sizeof(char *);
 }
 
-pkt_t*
-pkt_create(uint8_t type, uint8_t tr, uint8_t seqnum, uint8_t window,uint16_t length, char* payload){
-	pkt_t* pkt = pkt_new();
+void
+pkt_create(pkt_t* pkt, uint8_t type, uint8_t tr, uint8_t seqnum, uint8_t window,uint16_t length, char* payload){
 	pkt_set_type(pkt, type);
         pkt_set_tr(pkt, tr);
         pkt_set_seqnum(pkt, seqnum);
@@ -337,6 +336,5 @@ pkt_create(uint8_t type, uint8_t tr, uint8_t seqnum, uint8_t window,uint16_t len
         pkt_set_payload(pkt, payload, length);
         pkt_set_crc1(pkt, pkt_gen_crc1(pkt));
         pkt_set_crc2(pkt, pkt_gen_crc2(pkt));
-	return pkt;
 
 }

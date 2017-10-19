@@ -25,36 +25,43 @@ send_response (pkt_t* pkt, int sfd){
 		seqnum = pkt_get_seqnum(pkt);
 	}
 		
-	
-	pkt_resp = pkt_create(type, 0, seqnum, pkt_get_window(pkt), pkt_get_timestamp(pkt), 0, NULL);
+	/**XXX add timestamp */
+	pkt_create(pkt_resp, type, 0, seqnum, pkt_get_window(pkt), 0, NULL);
 	/*XXX send packet**/ 	
 		
 }
 
 
 
-static pkt_t* 
-pkt_reception (int nb_packet){
-	pkt_t* pkt = pkt_new();
+static void
+pkt_reception (pkt_t* pkt, int nb_packet, char* buf, size_t* len){
 	if(nb_packet == 0){
-		pkt = pkt_create(PTYPE_DATA, 0, 2, 1, 6, 0, "world");
+		pkt_create(pkt, PTYPE_DATA, 0, 2, 1, 5, " man!");
 	}	
 	if(nb_packet == 1){
-		pkt = pkt_create(PTYPE_DATA, 0, 1, 1, 5, 0, "hello");
+		pkt_create(pkt, PTYPE_DATA, 0, 1, 1, 2, "my");
 	}
 	if(nb_packet == 2){
-		pkt = pkt_create(PTYPE_DATA, 0, 3, 1, 0, 0, NULL);
+		pkt_create(pkt, 4, 0, 3, 1, 19, "first_garbage545454");
+		*buf = "slkfslfslmk";
+		return;
 	}
 	if(nb_packet == 3){
-		pkt = pkt_create(PTYPE_DATA, 0, 4, 1, 7, 0, "garbage");
+		pkt_create(pkt, PTYPE_DATA, 0, 4, 1, 0, NULL);
 	}
-	return pkt;
+	if(nb_packet == 4){
+		pkt_create(pkt, PTYPE_DATA, 0, 4, 1, 7, "garbage");
+	}
+	pkt_encode((const pkt_t*)pkt, buf, &len);
+	
 }
 
 static void
 receive_data (FILE *f, int sfd)
 {
+	pkt_status_code status = 0;
 	size_t nb_packet = 0;
+	size_t len = 0;
 	int finish = 0;
 	char  *buf = malloc(MAX_PKT_SIZE);
 	memset(buf, '\0', MAX_PKT_SIZE);
@@ -67,23 +74,31 @@ receive_data (FILE *f, int sfd)
 		/* Packets reception in priority queue */
 		for (; nb_packet < MAX_WINDOW_SIZE; nb_packet++) {
 			/*method reception pkt here is just for testing */
-			pkt_t *pkt = pkt_reception(nb_packet);
-			/*XXX check the packet */			
-			minq_push(pkt_queue, pkt);
+			pkt_t* pkt = pkt_new();	
+			pkt_reception(pkt, nb_packet, buf, &len);
+			len = sizeof(pkt_t) + pkt_get_length(pkt) - sizeof(pkt->payload);
+			/*Treat data */
+			status = pkt_decode((const char*)buf, len, pkt);
+			/*XXX check the packet */
+			if (status == PKT_OK) {
+				minq_push(pkt_queue, pkt);
 			
-			/** XXX rework to break look */
-			if(pkt_get_length(pkt) == 0) {
-				finish = 1;
-				break;
-			}
-			/*XXX method send ack or nack */
-			send_response(pkt, sfd);	
+				/** XXX rework to break look */
+				if(pkt_get_length(pkt) == 0) {
+					finish = 1;
+					break;
+				}
+
+				/*XXX method send ack or nack */
+				send_response(pkt, sfd);	
+			}			
+			
 		}
 		/* Empty the priority and append payload to the file*/
 		while (!minq_empty(pkt_queue)) {
 			if(pkt_get_length(minq_peek(pkt_queue)) == 0)
 				break;
-			fprintf(f, pkt_get_payload(minq_peek(pkt_queue)));
+			write_file(f, pkt_get_payload(minq_peek(pkt_queue)), pkt_get_length(minq_peek(pkt_queue)));
 			minq_pop(pkt_queue);        
 		}
 
