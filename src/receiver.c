@@ -15,18 +15,18 @@ send_response (pkt_t* pkt, int sfd, uint8_t window){
 	char* buf = NULL;
 	pkt_t* pkt_resp = pkt_new();	
 	uint8_t type = 0;
-	uint8_t seqnum = 0; 
+	uint8_t seqnum = pkt_get_seqnum(pkt); 
 	if (pkt_get_tr(pkt) == 0){
 		type = PTYPE_ACK;
 	}
 	else {
 		type = PTYPE_NACK;
 	}
+	//LOG("Send packet ack seqnum %d", seqnum);
 	if (seqnum + 1 >= MAX_SEQNUM)
 		seqnum = 0;
-	else seqnum = (pkt_get_seqnum(pkt) + 1)% (MAX_WINDOW_SIZE+1);
-		
-	/**XXX add timestamp */
+	else seqnum ++;
+	/*XXX Timestamp => last pkt received */
 	pkt_create(pkt_resp, type, 0, seqnum, window, 0, pkt_get_timestamp(pkt), NULL);
 	size_t len = ACK_PKT_SIZE;
 	buf = malloc(len);
@@ -59,7 +59,7 @@ receive_data (FILE *f, int sfd)
 	
 	while (keep_receiving) {
 		/* Packets reception in priority queue */
-		for (; nb_packet < MAX_WINDOW_SIZE; nb_packet++) {
+		for (nb_packet = 0; nb_packet < MAX_WINDOW_SIZE; nb_packet++) {
 			if (!keep_receiving) break;
 			/* Receive data */
 			char buf[MAX_PKT_SIZE];
@@ -72,10 +72,11 @@ receive_data (FILE *f, int sfd)
 			pkt_t* pkt = pkt_new();
 			status = pkt_decode(buf, read, pkt);
 			if (status == PKT_OK) {
-				
+				/** XXX packet TR = 1 */
 				/** XXX rework to break look => && last_seqnum == pkt_get_seqnum(pkt) */
 				if(pkt_get_length(pkt) == 0) { 
 					keep_receiving = 0;
+					LOG("Fin de la loop");
 					pkt_del(pkt);
 					break;
 				}
@@ -98,6 +99,7 @@ receive_data (FILE *f, int sfd)
 		}
 
 	}
+	LOG("end loop");
 	minq_del(pkt_queue);
 }
 
