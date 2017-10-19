@@ -314,3 +314,22 @@ nb_pkt_in_buffer(const ssize_t bytes)
     }
     return nb_packets;
 }
+
+
+pkt_t* pkt_create(uint8_t type, uint8_t seqnum, uint8_t window,uint16_t length, char* payload){
+	pkt_t* pkt = pkt_new();
+	pkt_set_type(pkt, type);
+        pkt_set_tr(pkt, 0);
+        pkt_set_seqnum(pkt, seqnum);
+        pkt_set_window(pkt, window);
+	struct timeval current_time ={.tv_sec = 0, .tv_usec = 0};
+        update_time(&current_time);
+        pkt_set_timestamp(pkt, pack_timestamp(current_time));
+        pkt_set_payload(pkt, payload, length);
+        pkt_set_crc1(pkt, pkt_gen_crc1(pkt));
+        pkt_set_crc2(pkt, pkt_gen_crc2(pkt));
+	return pkt;
+
+}
+
+

@@ -13,16 +13,16 @@
 static pkt_t* pkt_reception(int nb_packet){
 	pkt_t* pkt = pkt_new();
 	if(nb_packet == 0){
-		pkt_set_seqnum(pkt,1);
-		pkt_set_payload(pkt," world",6);
+		pkt = pkt_create(PTYPE_DATA, 2, 1, 6, " world");
 	}	
 	if(nb_packet == 1){
-		pkt_set_seqnum(pkt,3);
-		pkt_set_payload(pkt,"hello",5);	
+		pkt = pkt_create(PTYPE_DATA, 1, 1, 5, "hello");
 	}
 	if(nb_packet == 2){
-		pkt_set_seqnum(pkt,2);
-		pkt_set_length(pkt, 0);	
+		pkt = pkt_create(PTYPE_DATA, 3, 1, 0, NULL);
+	}
+	if(nb_packet == 3){
+		pkt = pkt_create(PTYPE_DATA, 4, 1, 7, "carbage");
 	}
 	return pkt;
 }
@@ -45,7 +45,7 @@ receive_data(FILE *f, int sfd)
 		/*XXX method reception pkt*/
 			pkt_t *pkt = pkt_reception(nb_packet);
 			minq_push(pkt_queue, pkt);
-			//pkt_del(pkt);
+			
 			if(pkt_get_length(pkt) == 0) {
 				finish = 1;
 				break;

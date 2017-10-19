@@ -151,6 +151,7 @@ uint32_t            pkt_gen_crc1(const pkt_t *);
 uint32_t            pkt_gen_crc2(const pkt_t *);
 void                pkt_to_string(const pkt_t *);
 size_t              nb_pkt_in_buffer(const ssize_t);
+pkt_t* 		    pkt_create(uint8_t, uint8_t, uint8_t,uint16_t, char*);
 
 /* net.c function prototypes */
 const char*         real_address(const char *, struct sockaddr_in6 *);
