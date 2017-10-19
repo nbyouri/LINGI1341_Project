@@ -10,6 +10,28 @@
  */
 #include "common.h"
 
+#if 0
+/*
+ * Add a packet to an array following the sliding window model
+ */
+static int
+array_push(pkt_t *a, size_t size, pkt_t e)
+{
+    if (size > 1) { /* slide elements if there are any */
+        size_t i = size - 1;
+        for (; i > 0; i--)
+            a[i - 1] = a[i];
+    }
+    a[size - 1] = e;
+    return 0;
+}
+
+static pkt_t
+array_peek(pkt_t *a, size_t size) {
+    return a[size - 1];
+}
+#endif
+
 /*
  * Read the file or a buffer from offset and during length bytes onto buf
  */
@@ -46,11 +68,11 @@ make_window(pkt_t *sliding_window[], FILE *f, char *data,
 	    size_t *data_offset, size_t *left_to_copy,
 	    uint8_t *seqnum, uint8_t window)
 {
-    struct timeval current_time = {.tv_sec = 0, .tv_usec = 0};
-    int i = 0;
+    struct timeval current_time = {0};
+    size_t i = 0;
     for (; i < MAX_WINDOW_SIZE; i++) {
 	/* stop if the window size is bigger than file size */
-        if (*nb_pkt >= total_pkt_to_send)
+        if (i >= total_pkt_to_send)
             break;
 
         sliding_window[i] = pkt_new();
@@ -82,27 +104,9 @@ make_window(pkt_t *sliding_window[], FILE *f, char *data,
 
         free(buf);
         buf = NULL;
-        (*nb_pkt)++;
+	(*nb_pkt)++;
     }
 }
-
-#if 0
-/*
- *
- * Slide the window
- *
- */
-static void
-slide_window(pkt_t *sliding_window[], FILE *f, char *data,
-	     size_t *nb_pkt, size_t *data_offset,
-	     size_t *left_to_copy, uint8_t *seqnum, uint8_t window)
-{
-    char *buf;
-    (*nb_pkt)++;
-    
-    
-}
-#endif
 
 /*
  *
@@ -142,13 +146,14 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
     size_t total_pkt_to_send = nb_pkt_in_buffer(total_len);
 
     /* Protocol variables */
-    uint8_t seqnum = 0;
-    uint8_t window = 1;
+    uint8_t  seqnum = 0;
+    uint8_t  window = 1;
     size_t  nb_pkt = 0;
     size_t  data_offset = 0;
     size_t  left_to_copy = total_len;
     size_t  left_to_send = total_pkt_to_send;
     size_t  i = 0;
+    size_t  cur_seqnum = 0;
     int	    keep_sending = 1;
     pkt_t   *sliding_window[MAX_WINDOW_SIZE];
 
@@ -157,7 +162,6 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 		total_pkt_to_send, &data_offset,
 		&left_to_copy, &seqnum, window);
 
-    LOG("Entering main loop.");
     /* Main loop */
     size_t nb_pkt_win = nb_pkt;
     while (keep_sending) {
@@ -165,25 +169,24 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 		keep_sending = 0;
 		continue;
 	}
-	char *buf = malloc(MAX_PKT_SIZE);
+    	char *buf = malloc(MAX_PKT_SIZE);
 	size_t len = MAX_PKT_SIZE;
 
         /* Send the packet */
 	if (window == 0) {
-		LOG("The window is full, we need to wait for ACKs");
+		LOG("Window is full, we need some ACKs");
 	} else {
-                memset(buf, '\0', MAX_PKT_SIZE);
-		if (pkt_encode(sliding_window[seqnum], buf, &len) != PKT_OK) {
-			ERROR("Failed to encode packet %d\n", seqnum);
-			keep_sending = 0;
-		}
-
-		if (keep_sending && send(sfd, buf, len, 0) == -1) {
-			ERROR("Failed to send pkt %d\n", seqnum);
-			keep_sending = 0;
-		}
+        	memset(buf, '\0', MAX_PKT_SIZE);
+	if (pkt_encode(sliding_window[cur_seqnum], buf, &len) != PKT_OK) {
+		ERROR("Failed to encode packet %zu\n", cur_seqnum);
+		keep_sending = 0;
 	}
-        LOG("Sent packet");
+
+	if (keep_sending && send(sfd, buf, len, 0) == -1) {
+		ERROR("Failed to send pkt %zu\n", cur_seqnum);
+		keep_sending = 0;
+	}
+	}
 
 	/* Listen for an ACK XXX multiplex! */
 	char *response_buf = malloc(ACK_PKT_SIZE);
@@ -200,26 +203,20 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 	/* XXX handle NACKs */
 	if (pkt_get_type(ack) == PTYPE_ACK) {
 		if (pkt_get_seqnum(ack) == seqnum + 1) {
-			LOG("ACK for packet %d", seqnum);
+			LOG("ACK for packet %zu\n", cur_seqnum);
 			left_to_send--;
-			nb_pkt_win--;
 			if (left_to_send > 0) {
-				seqnum = pkt_get_seqnum(ack);
-				window = pkt_get_window(ack);
+				nb_pkt_win = MAX_WINDOW_SIZE;
+				cur_seqnum = seqnum = pkt_get_seqnum(ack);
 			} else {
 				keep_sending = 0;
 			}
-                        /* XXX do a sliding window */
-                        if (nb_pkt_win == 0 && left_to_send > 0) {
-                            make_window(sliding_window, f, data, &nb_pkt,
-                                        total_pkt_to_send, &data_offset,
-                                        &left_to_copy, &seqnum, window);
-                            nb_pkt_win = MAX_WINDOW_SIZE;
-                        }
 		} else {
 			LOG("Out of sequence ACK (%d)!", pkt_get_seqnum(ack));
 		}
 	}
+
+
 	pkt_del(ack);
 	free(buf);
 	buf = NULL;
@@ -234,44 +231,6 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 
     send_terminating_packet(sfd, seqnum);
 }
-
-#if 0
-/*
- * Loop through window entries and send them
- *
- */
-static int
-send_window(int socket, window_entry **w, size_t offset, size_t window)
-{
-    size_t  i = 0;
-    size_t  temp_buflen = MAX_PKT_SIZE;
-    char    *temp_buf = malloc(temp_buflen);
-    int     sent = 0;
-    if (temp_buf == NULL) {
-        return -1;
-    }
-    for (i = offset; i < window; i++) {
-        if (w[i]->ack == 0) {
-            /* encode packet in temporary buffer */
-            memset(temp_buf, '\0', temp_buflen);
-            if (pkt_encode(w[i]->pkt, temp_buf, &temp_buflen) != PKT_OK) {
-                ERROR("fail to encode pkt");
-                return -1;
-            }
-            if (send(socket, temp_buf, temp_buflen, 0) == -1) {
-                ERROR("Failed to send package %zu", i);
-                return -1;
-            }
-            w[i]->sent = 1;
-            sent++;
-        }
-    }
-    free(temp_buf);
-    temp_buf = NULL;
-    return 0;
-}
-#endif
-
 
 int
 main(int argc, char **argv)
