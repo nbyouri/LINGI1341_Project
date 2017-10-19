@@ -11,7 +11,7 @@
 #include "common.h"
 
 static void 
-send_response (pkt_t* pkt, int sfd){
+send_response (pkt_t* pkt, int sfd, uint8_t window){
 	char* buf = NULL;
 	pkt_t* pkt_resp = pkt_new();	
 	uint8_t type = 0;
@@ -24,10 +24,10 @@ send_response (pkt_t* pkt, int sfd){
 	}
 	if (seqnum + 1 >= MAX_SEQNUM)
 		seqnum = 0;
-	else seqnum = pkt_get_seqnum(pkt) + 1;
+	else seqnum = (pkt_get_seqnum(pkt) + 1)% (MAX_WINDOW_SIZE+1);
 		
 	/**XXX add timestamp */
-	pkt_create(pkt_resp, type, 0, seqnum, pkt_get_window(pkt), 0, NULL);
+	pkt_create(pkt_resp, type, 0, seqnum, window, 0, NULL);
 	size_t len = ACK_PKT_SIZE;
 	buf = malloc(len);
 	memset(buf, '\0', len);
@@ -42,30 +42,6 @@ send_response (pkt_t* pkt, int sfd){
 		
 }
 
-#if 0
-static void
-pkt_reception (pkt_t* pkt, int nb_packet, char* buf, size_t* len){
-	if(nb_packet == 0){
-		pkt_create(pkt, PTYPE_DATA, 0, 2, 1, 5, " man!");
-	}	
-	if(nb_packet == 1){
-		pkt_create(pkt, PTYPE_DATA, 0, 1, 1, 2, "my");
-	}
-	if(nb_packet == 2){
-		pkt_create(pkt, 4, 0, 3, 1, 19, "first_garbage545454");
-		*buf = "slkfslfslmk";
-		return;
-	}
-	if(nb_packet == 3){
-		pkt_create(pkt, PTYPE_DATA, 0, 4, 1, 0, NULL);
-	}
-	if(nb_packet == 4){
-		pkt_create(pkt, PTYPE_DATA, 0, 4, 1, 7, "garbage");
-	}
-	pkt_encode(pkt, buf, *len);
-	
-}
-#endif
 
 static void
 receive_data (FILE *f, int sfd)
@@ -73,7 +49,7 @@ receive_data (FILE *f, int sfd)
 	pkt_status_code status = 0;
 	size_t nb_packet = 0;
 	int finish = 0;
-	
+	uint8_t window = MAX_WINDOW_SIZE;
 	minqueue_t* pkt_queue = NULL;
 	if (!(pkt_queue = minq_new(pkt_cmp_seqnum))) {
 		ERROR("Failed to initialize PQ");
@@ -86,7 +62,6 @@ receive_data (FILE *f, int sfd)
 			if (finish) break;
 			/* Receive data */
 			char buf[MAX_PKT_SIZE];
-			
 			ssize_t read = recv(sfd, buf, MAX_PKT_SIZE, 0);
 			if (read == -1) {
 				ERROR("Failed to receive");
@@ -97,6 +72,7 @@ receive_data (FILE *f, int sfd)
 			status = pkt_decode(buf, read, pkt);
 			/*XXX check the packet */
 			if (status == PKT_OK) {
+				
 				/** XXX rework to break look */
 				if(pkt_get_length(pkt) == 0) {
 					finish = 1;
@@ -108,7 +84,7 @@ receive_data (FILE *f, int sfd)
 					return;
 				}
 				/*XXX method send ack or nack */
-				send_response(pkt, sfd);	
+				send_response(pkt, sfd, --window);	
 			}			
 		}
 		/* Empty the priority and append payload to the file*/
@@ -118,6 +94,7 @@ receive_data (FILE *f, int sfd)
 			write_file(f, pkt_get_payload(pkt), len);
 			minq_pop(pkt_queue);        
 			pkt_del(pkt);
+			window ++;
 		}
 
 	}
