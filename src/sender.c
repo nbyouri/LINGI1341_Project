@@ -89,7 +89,6 @@ make_window(pkt_t *sliding_window[], FILE *f, char *data,
         if (*left_to_copy < MAX_PAYLOAD_SIZE)
             length = *left_to_copy;
         if (length == 0) break; // XXX MEMORY LEAK
-        LOG("make_window: length = %zu, left_to_copy = %zu", length, *left_to_copy);
         buf = malloc(length);
 	memset(buf, '\0', length);
         get_payload(&buf, f, data, *data_offset, length);
@@ -156,7 +155,8 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
     size_t  left_to_copy = total_len;
     size_t  left_to_send = total_pkt_to_send;
     size_t  i = 0;
-    size_t  cur_seqnum = 0; // slot in the sending buffer FIXME stupid name
+    size_t  cur_slot = 0;
+    size_t  cur_seqnum = 0;
     int	    keep_sending = 1;
     pkt_t   *sliding_window[MAX_WINDOW_SIZE];
 
@@ -176,12 +176,12 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 	size_t len = MAX_PKT_SIZE;
 
         /* Send the packet */
-        LOG("Sending packet with seqnum %d", pkt_get_seqnum(sliding_window[cur_seqnum]));
+        LOG("Sending packet with seqnum %d", pkt_get_seqnum(sliding_window[cur_slot]));
 	if (window == 0) {
 		LOG("Window is full, we need some ACKs");
 	} else {
         	memset(buf, '\0', MAX_PKT_SIZE);
-	if (pkt_encode(sliding_window[cur_seqnum], buf, &len) != PKT_OK) {
+	if (pkt_encode(sliding_window[cur_slot], buf, &len) != PKT_OK) {
 		ERROR("Failed to encode packet %zu\n", cur_seqnum);
 		keep_sending = 0;
 	}
@@ -191,7 +191,6 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 		keep_sending = 0;
 	}
 	}
-        LOG("Sent packet");
 
 	/* Listen for an ACK XXX multiplex! */
 	char *response_buf = malloc(ACK_PKT_SIZE);
@@ -212,7 +211,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 			left_to_send--;
                         nb_pkt_win--;
 			if (left_to_send > 0) {
-				cur_seqnum = seqnum = pkt_get_seqnum(ack);
+				cur_slot = cur_seqnum = seqnum = pkt_get_seqnum(ack);
 			} else {
 				keep_sending = 0;
 			}
@@ -220,18 +219,16 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
                             make_window(sliding_window, f, data, &nb_pkt,
                                         total_pkt_to_send, &data_offset,
                                         &left_to_copy, &seqnum, window);
-                            LOG("make_window ok");
                             if (left_to_send < MAX_WINDOW_SIZE)
                                 nb_pkt_win = left_to_send;
                             else
                                 nb_pkt_win = MAX_WINDOW_SIZE;
-                            cur_seqnum %= MAX_WINDOW_SIZE;
 			}
+                        cur_slot %= MAX_WINDOW_SIZE;
 		} else {
 			LOG("Out of sequence ACK (%d)!", pkt_get_seqnum(ack));
 		}
 	}
-
 
 	pkt_del(ack);
 	free(buf);
@@ -241,7 +238,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
     }
 
     /* Cleanup */
-    for (i = 0; i < nb_pkt; i++) {
+    for (i = 0; i < MAX_WINDOW_SIZE; i++) {
 	pkt_del(sliding_window[i]);
     }
 
