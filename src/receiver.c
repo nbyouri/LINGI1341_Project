@@ -26,8 +26,7 @@ send_response (pkt_t* pkt, int sfd){
 	}
 		
 	
-	pkt_resp = pkt_create(type, 0, seqnum, pkt_get_window(pkt),0,NULL);
-	pkt_set_timestamp(pkt_resp, pkt_get_timestamp(pkt));
+	pkt_resp = pkt_create(type, 0, seqnum, pkt_get_window(pkt), pkt_get_timestamp(pkt), 0, NULL);
 	/*XXX send packet**/ 	
 		
 }
@@ -38,16 +37,16 @@ static pkt_t*
 pkt_reception (int nb_packet){
 	pkt_t* pkt = pkt_new();
 	if(nb_packet == 0){
-		pkt = pkt_create(PTYPE_DATA, 0, 2, 1, 6, " world");
+		pkt = pkt_create(PTYPE_DATA, 0, 2, 1, 6, 0, "world");
 	}	
 	if(nb_packet == 1){
-		pkt = pkt_create(PTYPE_DATA, 0, 1, 1, 5, "hello");
+		pkt = pkt_create(PTYPE_DATA, 0, 1, 1, 5, 0, "hello");
 	}
 	if(nb_packet == 2){
-		pkt = pkt_create(PTYPE_DATA, 0, 3, 1, 0, NULL);
+		pkt = pkt_create(PTYPE_DATA, 0, 3, 1, 0, 0, NULL);
 	}
 	if(nb_packet == 3){
-		pkt = pkt_create(PTYPE_DATA, 0, 4, 1, 7, "garbage");
+		pkt = pkt_create(PTYPE_DATA, 0, 4, 1, 7, 0, "garbage");
 	}
 	return pkt;
 }
@@ -67,8 +66,9 @@ receive_data (FILE *f, int sfd)
 	while(!finish) {
 		/* Packets reception in priority queue */
 		for (; nb_packet < MAX_WINDOW_SIZE; nb_packet++) {
-		/*XXX method reception pkt*/
+			/*method reception pkt here is just for testing */
 			pkt_t *pkt = pkt_reception(nb_packet);
+			/*XXX check the packet */			
 			minq_push(pkt_queue, pkt);
 			
 			/** XXX rework to break look */
