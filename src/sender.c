@@ -1,5 +1,5 @@
 /**
- * Receiver program.
+ * Sender program.
  *
  * Nicolas Sias
  *      &
@@ -28,26 +28,40 @@ array_slide(pkt_t *a[], size_t size)
 /*
  * Read the file or a buffer from offset and during length bytes onto buf
  */
-static int
-get_payload(char **buf, FILE *f, char *data, size_t offset, size_t length)
+static char*
+get_payload(FILE *f, char *data, size_t *data_offset,
+            size_t *left_to_copy, size_t *length)
 {
-    char tmp[length];
-    memset(tmp, 0, length);
+    /* First find out how much we need to get */
+    *length = MAX_PAYLOAD_SIZE;
+    if (*left_to_copy < MAX_PAYLOAD_SIZE)
+        *length = *left_to_copy;
+
+    char *buf = malloc(*length);
+    if (buf == NULL) {
+        ERROR("Failed to allocate buffer");
+        return NULL;
+    }
+    memset(buf, 0, *length);
     if (f != NULL) {
-        file_set_position(f, offset);
-        size_t readf = fread(tmp, sizeof(char), length, f);
+        file_set_position(f, *data_offset);
+        size_t readf = fread(buf, sizeof(char), *length, f);
         if (readf <= 0) {
-            ERROR("Failed to read file from byte %zu to %zu\n", offset, offset + length);
-            return -1;
+            ERROR("Failed to read file from byte %zu to %zu\n",
+                *data_offset, *data_offset + *length);
+            free(buf);
+            buf = NULL;
+            return NULL;
         }
     }
 
     if (data != NULL) {
-        memcpy(&tmp, data + offset, length);
+        memcpy(buf, data + *data_offset, *length);
     }
+    *data_offset  += *length;
+    *left_to_copy -= *length;
 
-    memcpy(*buf, tmp, length);
-    return 0;
+    return buf;
 }
 
 /*
@@ -57,13 +71,9 @@ get_payload(char **buf, FILE *f, char *data, size_t offset, size_t length)
  */
 static void
 slide_window(pkt_t *sliding_window[], FILE *f, char *data,
-    size_t *nb_pkt, size_t total_pkt_to_send,
     size_t *data_offset, size_t *left_to_copy,
     uint8_t *seqnum, uint8_t window)
 {
-    if (*nb_pkt >= total_pkt_to_send)
-        return;
-
     /* delete the first element */
     pkt_del(sliding_window[0]);
 
@@ -71,34 +81,20 @@ slide_window(pkt_t *sliding_window[], FILE *f, char *data,
     array_slide(sliding_window, MAX_PAYLOAD_SIZE);
 
     /* read a pkt from file */
-    char *buf;
-    size_t length = MAX_PAYLOAD_SIZE;
-    if (*left_to_copy < MAX_PAYLOAD_SIZE)
-        length = *left_to_copy;
-    //if (length == 0) return;
-    buf = malloc(length);
-    memset(buf, '\0', length);
-    get_payload(&buf, f, data, *data_offset, length);
+    size_t length = 0;
+    char *buf = get_payload(f, data, data_offset, left_to_copy, &length);
 
     /* fill all fields of new pkt */
-    /* XXX merge with make_window */
     size_t lastel = MAX_WINDOW_SIZE - 1;
     sliding_window[lastel] = pkt_new();
-    pkt_set_type(sliding_window[lastel], PTYPE_DATA);
-    pkt_set_seqnum(sliding_window[lastel], *seqnum);
-    pkt_set_window(sliding_window[lastel], window);
-    pkt_set_payload(sliding_window[lastel], buf, length);
-    pkt_set_crc1(sliding_window[lastel], pkt_gen_crc1(sliding_window[lastel]));
-    pkt_set_crc2(sliding_window[lastel], pkt_gen_crc2(sliding_window[lastel]));
     /* set timestamp XXX */
+    pkt_create(sliding_window[lastel], PTYPE_DATA, *seqnum, window, length, 0, buf);
 
     /* Bookkeeping */
-    *data_offset += length;
-    *left_to_copy -= length;
     if (*seqnum + 1 >= MAX_SEQNUM)
         *seqnum = 0;
     else (*seqnum)++;
-    (*nb_pkt)++;
+
     free(buf);
     buf = NULL;
 }
@@ -110,11 +106,10 @@ slide_window(pkt_t *sliding_window[], FILE *f, char *data,
  */
 static int
 make_window(pkt_t *sliding_window[], FILE *f, char *data,
-    size_t *nb_pkt, size_t total_pkt_to_send,
+    size_t total_pkt_to_send,
     size_t *data_offset, size_t *left_to_copy,
     uint8_t *seqnum, uint8_t window)
 {
-    struct timeval current_time = {0};
     size_t i = 0;
     for (; i < MAX_WINDOW_SIZE; i++) {
         /* stop if the window size is bigger than file size */
@@ -122,36 +117,20 @@ make_window(pkt_t *sliding_window[], FILE *f, char *data,
             break;
 
         sliding_window[i] = pkt_new();
-        char *buf;
 
-        pkt_set_type(sliding_window[i], PTYPE_DATA);
-        pkt_set_tr(sliding_window[i], 0);
-        pkt_set_seqnum(sliding_window[i], *seqnum);
-        pkt_set_window(sliding_window[i], window);
-        update_time(&current_time);
-        pkt_set_timestamp(sliding_window[i], pack_timestamp(current_time));
+        size_t length = 0;
+        char *buf = get_payload(f, data, data_offset, left_to_copy, &length);
 
-        size_t length = MAX_PAYLOAD_SIZE;
-        if (*left_to_copy < MAX_PAYLOAD_SIZE)
-            length = *left_to_copy;
-        if (length == 0) break;
-        buf = malloc(length);
-        memset(buf, '\0', length);
-        get_payload(&buf, f, data, *data_offset, length);
-        pkt_set_payload(sliding_window[i], buf, length);
-        pkt_set_crc1(sliding_window[i], pkt_gen_crc1(sliding_window[i]));
-        pkt_set_crc2(sliding_window[i], pkt_gen_crc2(sliding_window[i]));
+        /* timestamp XXX */
+        pkt_create(sliding_window[i], PTYPE_DATA, *seqnum, window, length, 0, buf);
 
         /* Bookkeeping */
-        *data_offset += length;
-        *left_to_copy -= length;
         if (*seqnum + 1 >= MAX_SEQNUM)
             *seqnum = 0;
         else (*seqnum)++;
 
         free(buf);
         buf = NULL;
-        (*nb_pkt)++;
     }
     return i;
 }
@@ -170,7 +149,6 @@ send_terminating_packet(int sfd, uint8_t seqnum) {
     pkt_set_type(end_pkt, PTYPE_DATA);
     pkt_set_seqnum(end_pkt, seqnum);
     if (pkt_encode(end_pkt, buf, &len) != PKT_OK) {
-        LOG("seqnum of pkt to be written %d", pkt_get_seqnum(end_pkt));
         ERROR("Failed to encode end_pkt");
         goto end;
     }
@@ -187,11 +165,9 @@ end:
 
 /*
  * Returns 1 if left is a successor seqnum of right, 0 otherwise
- *
  */
 static int
 seqnum_succ(uint8_t left, uint8_t right) {
-    LOG("Comparing %d and %d", left, right);
     if (left == 255) {
         left = 0;
         return left <= right;
@@ -212,21 +188,23 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
     LOG("We need to send %zu packages", total_pkt_to_send);
 
     /* Protocol variables */
-    uint8_t  seqnum = 0;
-    uint8_t  window = 1;
-    size_t  nb_pkt = 0;
-    size_t  data_offset = 0;
-    size_t  left_to_copy = total_len;
-    size_t  left_to_send = total_pkt_to_send;
+    uint8_t seqnum = 0;
+    uint8_t window = 1;
+    size_t  data_offset = 0;                    /* where we are in the file */
+    size_t  left_to_copy = total_len;           /* inverse offset in file */
+    size_t  left_to_send = total_pkt_to_send;   /* amount of packets left to
+                                                   send */
     size_t  i = 0;
-    size_t  cur_slot = 0;
+    size_t  cur_slot = 0;                       /* sliding window index */
     size_t  cur_seqnum = 0;
-    size_t  cur_window_size = MAX_WINDOW_SIZE;
+    size_t  cur_window_size = MAX_WINDOW_SIZE; /* keep the count of allocated
+                                                  packets in the send buffer
+                                                  so we can cleanup properly.*/
     int	    keep_sending = 1;
-    pkt_t   *sliding_window[MAX_WINDOW_SIZE];
+    pkt_t   *sliding_window[MAX_WINDOW_SIZE];   /* send buffer */
 
     /* Build the initial sliding window */
-    cur_window_size = make_window(sliding_window, f, data, &nb_pkt,
+    cur_window_size = make_window(sliding_window, f, data,
         total_pkt_to_send, &data_offset,
         &left_to_copy, &seqnum, window);
 
@@ -267,12 +245,11 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
             ERROR("Failed to decode ack");
             keep_sending = 0;
         }
-        /* XXX handle NACKs */
         if (pkt_get_type(ack) == PTYPE_ACK) {
                 LOG("ACK for packet %zu", cur_seqnum);
+                /* XXX check for out of sequence ACKs? */
                 left_to_send--;
-                /*
-                 * If we have >= MAX_WINDOW_SIZE packets left to send
+                /* If we have >= MAX_WINDOW_SIZE packets left to send
                  * and the ack seqnum is a successor then we can slide
                  * the window. This takes in account cumulative acks.
                  */
@@ -282,35 +259,19 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
                     cur_seqnum = pkt_get_seqnum(ack);
                     LOG("cur_seqnum = %zu, cur_slot = %zu, left_to_send = %zu", cur_seqnum, cur_slot, left_to_send);
                     /* Slide window XXX enable sliding by more than one slot at once, cumulative acks */
-                    slide_window(sliding_window, f, data, &nb_pkt,
-                                 total_pkt_to_send, &data_offset,
-                                 &left_to_copy, &seqnum, window);
+                    slide_window(sliding_window, f, data,
+                                 &data_offset, &left_to_copy, &seqnum, window);
                 /* If we don't need to slide the window,
-                 * that is if the current buffer is smaller than max window size
+                 * if the current buffer is smaller than max window size
                  */
                 } else if (left_to_send > 0) {
                     LOG("cur_seqnum = %zu, cur_slot = %zu, left_to_send = %zu", cur_seqnum, cur_slot, left_to_send);
                     cur_seqnum = seqnum = pkt_get_seqnum(ack);
                     cur_slot++;
+                    cur_window_size = cur_slot + 1;
                 } else {
                     keep_sending = 0;
                 }
-#if 0
-                /* Old way sliding a whole window at once */
-                if (left_to_send > 0 && nb_pkt_win == 0) {
-                    cur_slot = 0;
-                    for (i = 0; i < MAX_WINDOW_SIZE; i++) {
-                        pkt_del(sliding_window[i]);
-                    }
-                    cur_window_size = make_window(sliding_window, f, data, &nb_pkt,
-                        total_pkt_to_send, &data_offset,
-                        &left_to_copy, &seqnum, window) + 1;
-                    if (left_to_send < MAX_WINDOW_SIZE)
-                        nb_pkt_win = left_to_send;
-                    else
-                        nb_pkt_win = MAX_WINDOW_SIZE;
-                }
-#endif
         /* Deal with NACKs, go back to the truncated pkt */
         } else if (pkt_get_type(ack) == PTYPE_NACK) {
             cur_slot = pkt_get_seqnum(ack) % MAX_WINDOW_SIZE;
@@ -328,6 +289,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
         pkt_del(sliding_window[i]);
     }
 
+    /* Finish transmission */
     send_terminating_packet(sfd, seqnum);
 }
 
@@ -384,6 +346,7 @@ main(int argc, char **argv)
     int sfd = create_socket(NULL, -1, &addr, port);
     if (sfd < 0) {
         ERROR("Failed to create socket.\n");
+        return EXIT_FAILURE;
     }
 
     /* get data */
