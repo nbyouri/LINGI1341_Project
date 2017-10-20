@@ -217,6 +217,18 @@ pkt_cmp_seqnum(const void *a, const void *b)
 	uint8_t right = ((pkt_t *)b)->header.seqnum;
 	return left > right;
 }
+/*
+ * Compare packets based on their seqnum values
+ * return a seqnum == b seqnum
+ */
+
+int
+pkt_cmp_seqnum2(const void *a, const void *b)
+{
+	uint8_t left = ((pkt_t *)a)->header.seqnum;
+	uint8_t right = ((pkt_t *)b)->header.seqnum;
+	return left == right;
+}
 
 
 /*

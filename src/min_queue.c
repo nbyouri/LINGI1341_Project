@@ -51,12 +51,13 @@ SOFTWARE.
 /* The data structure we'll be using to represent the priority queue */
 struct minqueue {
 	minq_key_cmp cmp; /* Compare function for the elements */
+	minq_key_cmp cmp2;
 	size_t size; /* The number of items in the queue */
 	size_t alloc; /* The number of allocated slots */
 	void **e; /* The array of slots in the queue */
 };
 
-minqueue_t *minq_new(minq_key_cmp cmp)
+minqueue_t *minq_new(minq_key_cmp cmp, minq_key_cmp cmp2)
 {
 	minqueue_t *q;
 	if (!cmp || !(q = malloc(sizeof(*q))))
@@ -67,6 +68,7 @@ minqueue_t *minq_new(minq_key_cmp cmp)
 		return NULL;
 	}
 	q->cmp = cmp;
+	q->cmp2 = cmp2;
 	q->size = 0;
 	q->alloc = SLOTS_PER_MALLOC;
 	return q;
@@ -77,6 +79,15 @@ void minq_del(minqueue_t *q)
 	if (!q) return;
 	free(q->e);
 	free(q);
+}
+
+int minq_avoid_push(minqueue_t* q, void *v){
+	size_t j = 0;
+	for (; j < q->size; j ++) {
+		if(q->cmp2(q->e[j], v) == 1)
+			return 1;
+	}
+	return 0;
 }
 
 int minq_push(minqueue_t* q, void *v)
@@ -95,6 +106,9 @@ int minq_push(minqueue_t* q, void *v)
 		q->e = tmp;
 		q->alloc = resize_to;
 	}
+	/* Avoid push if the new insertion has the same priority than other */
+	if (minq_avoid_push(q, v) == 1)
+		return 0;
 	/* Assume insertion at last index */
 	size_t i = q->size++;
 	size_t parent = PARENT(i);

@@ -42,7 +42,7 @@ typedef int (*minq_key_cmp)(const void *a, const void *b);
  * @minq_key_cmp: The key compare function
  * @return: NULL on error
  */
-minqueue_t *minq_new(minq_key_cmp);
+minqueue_t *minq_new(minq_key_cmp, minq_key_cmp);
 /* Destroy a min-queue instance */
 void minq_del(minqueue_t*);
 

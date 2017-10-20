@@ -32,18 +32,17 @@ send_response (pkt_t* pkt, int sfd, uint8_t window){
 	pkt_create(pkt_resp, type, 0, seqnum, window, 0, pkt_get_timestamp(pkt), NULL);
 	size_t len = ACK_PKT_SIZE;
 	buf = malloc(len);
-	memset(buf, 0, len);
+	memset(buf, '\0', len);
 	if (pkt_encode(pkt_resp, buf, &len) != PKT_OK){
 		ERROR("Encode ACK/NACK packet failed");
 		return;
-        }
+	} 
 	if (send(sfd, buf, len, 0) == -1) {
 		ERROR("Send ACK/NACK packet failed");
 		return;
-	}
-        free(buf);
-        buf = NULL;
-        pkt_del(pkt_resp);
+	} 
+	//getchar();	
+		
 }
 
 
@@ -56,7 +55,7 @@ receive_data (FILE *f, int sfd)
 	uint8_t last_seqnum = 0;
 	uint8_t window = MAX_WINDOW_SIZE;
 	minqueue_t* pkt_queue = NULL;
-	if (!(pkt_queue = minq_new(pkt_cmp_seqnum))) {
+	if (!(pkt_queue = minq_new(pkt_cmp_seqnum, pkt_cmp_seqnum2))) {
 		ERROR("Failed to initialize PQ");
 		return;
 	}
@@ -128,7 +127,6 @@ main(int argc, char **argv)
         while ((d = getopt(argc, argv, "f:")) != -1) {
             switch (d) {
             case 'f':
-                memset(filename, 0, BUFSIZ);
                 memcpy(filename, optarg, strlen(optarg));
                 have_file = 1;
                 break;
@@ -174,11 +172,29 @@ main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    receive_data(have_file ? f : stdout, sfd);
 
+#if 0
+        /* treat data */
+        LOG("Treating data");
+        size_t i = 0;
+        for (; buffer[i] != NULL && i < MAX_WINDOW_SIZE; i++) {
+            if (pkt_get_length(buffer[i]) > 0) {
+                fwrite(pkt_get_payload(buffer[i]), sizeof(char),
+                    pkt_get_length(buffer[i]), have_file ? f : stdout);
+                bytes_written += pkt_get_length(buffer[i]);
+                good_seqnum++;
+            }
+        }
+        LOG("bytes_written = %zu", bytes_written);
+#endif
+    receive_data(have_file ? f : stdout, sfd);
+    close(sfd);
+
+#if 0 /* XXX LINUX BUG? */
     if (have_file && f != NULL) {
         fclose(f);
     }
+#endif
 
     return EXIT_SUCCESS;
 }
