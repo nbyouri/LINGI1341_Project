@@ -324,8 +324,12 @@ pkt_get_size(const pkt_t *pkt)
     return sizeof(pkt) + pkt_get_length(pkt) - sizeof(char *);
 }
 
+/*
+ * Fill pkt fields
+ */
 void
-pkt_create(pkt_t* pkt, uint8_t type, uint8_t tr, uint8_t seqnum, uint8_t window,uint16_t length, uint32_t timestamp, char* payload){
+pkt_create(pkt_t* pkt, uint8_t type, uint8_t tr, uint8_t seqnum,
+           uint8_t window,uint16_t length, uint32_t timestamp, char* payload){
 	pkt_set_type(pkt, type);
         pkt_set_tr(pkt, tr);
         pkt_set_seqnum(pkt, seqnum);
