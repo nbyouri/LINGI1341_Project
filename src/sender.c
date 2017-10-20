@@ -90,10 +90,7 @@ slide_window(pkt_t *sliding_window[], FILE *f, char *data,
     /* set timestamp XXX */
     pkt_create(sliding_window[lastel], PTYPE_DATA, *seqnum, window, length, 0, buf);
 
-    /* Bookkeeping */
-    if (*seqnum + 1 >= MAX_SEQNUM)
-        *seqnum = 0;
-    else (*seqnum)++;
+    increment_seqnum(seqnum);
 
     free(buf);
     buf = NULL;
@@ -124,10 +121,7 @@ make_window(pkt_t *sliding_window[], FILE *f, char *data,
         /* timestamp XXX */
         pkt_create(sliding_window[i], PTYPE_DATA, *seqnum, window, length, 0, buf);
 
-        /* Bookkeeping */
-        if (*seqnum + 1 >= MAX_SEQNUM)
-            *seqnum = 0;
-        else (*seqnum)++;
+        increment_seqnum(seqnum);
 
         free(buf);
         buf = NULL;
