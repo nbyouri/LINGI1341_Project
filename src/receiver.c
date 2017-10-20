@@ -1,5 +1,5 @@
 /**
- * Sender program.
+ * Receiver program.
  *
  * Nicolas Sias
  *	&
@@ -10,8 +10,31 @@
  */
 #include "common.h"
 
+/* Empty the priority queue and append payload to the file*/
+static void 
+write_packet(FILE *f, minqueue_t *pkt_queue, size_t *window_size, uint8_t *seqnum_expected) {
+	int keep_writing = 1;
+        while (!minq_empty(pkt_queue) && keep_writing) {
+            pkt_t *pkt = (pkt_t *)minq_peek(pkt_queue);
+            size_t len = pkt_get_length(pkt);
+	    /* Finish writing if we need another packet */
+	    if (*seqnum_expected != pkt_get_seqnum(pkt)) {
+	        LOG("Wait for missing packet seq : %d", *seqnum_expected);
+	    	keep_writing = 0;
+	    } else {
+            	write_file(f, pkt_get_payload(pkt), len);
+            	minq_pop(pkt_queue);
+            	(*window_size)++;
+		increment_seqnum(seqnum_expected);
+	    }
+            pkt_del(pkt);
+        }
+} 
+
+
+/* XXX ACK cumul **/
 static void
-send_response (pkt_t* pkt, int sfd, uint8_t window){
+send_response(pkt_t *pkt, int sfd, uint8_t window){
     char* buf = NULL;
     pkt_t* pkt_resp = pkt_new();
     uint8_t type = 0;
@@ -23,13 +46,11 @@ send_response (pkt_t* pkt, int sfd, uint8_t window){
         type = PTYPE_NACK;
     }
     //LOG("Send packet ack seqnum %d", seqnum);
-    if (seqnum + 1 >= MAX_SEQNUM)
-        seqnum = 0;
-    else seqnum = seqnum + 1 ;
+    increment_seqnum(&seqnum);
     LOG("ACK Seqnum sent : %d", seqnum);
     LOG("ACK Window : %d \n", window);
     /*XXX Timestamp => last pkt received */
-    pkt_create(pkt_resp, type, 0, seqnum, window, 0, pkt_get_timestamp(pkt), NULL);
+    pkt_create(pkt_resp, type, seqnum, window, 0, pkt_get_timestamp(pkt), NULL);
     size_t len = ACK_PKT_SIZE;
     buf = malloc(len);
     memset(buf, '\0', len);
@@ -51,11 +72,13 @@ static void
 receive_data (FILE *f, int sfd)
 {
     pkt_status_code status = 0;
-    size_t nb_packet = 0;
+    //size_t nb_packet = 0;
     int keep_receiving = 1;
-    uint8_t last_seqnum = 0;
-    uint8_t window = MAX_WINDOW_SIZE;
+    size_t last_seqnum = 0;
+    size_t window_size = MAX_WINDOW_SIZE;
+    uint8_t seqnum_expected = 0;
     minqueue_t* pkt_queue = NULL;
+
     if (!(pkt_queue = minq_new(pkt_cmp_seqnum, pkt_cmp_seqnum2))) {
         ERROR("Failed to initialize PQ");
         return;
@@ -64,56 +87,43 @@ receive_data (FILE *f, int sfd)
     while (keep_receiving) {
         /* Packets reception in priority queue */
         LOG("Begin for");
-        for (nb_packet = 0; nb_packet < MAX_WINDOW_SIZE; nb_packet++) {
-            if (!keep_receiving) break;
-            /* Receive data */
-            char buf[MAX_PKT_SIZE];
-            ssize_t read = recv(sfd, buf, MAX_PKT_SIZE, 0);
-            if (read == -1) {
-                LOG("Read finish => failed to receive or end receiving");
-                ERROR("Failed to receive");
+        if (!keep_receiving) break;
+        /* Receive data */
+        char buf[MAX_PKT_SIZE];
+        ssize_t read = recv(sfd, buf, MAX_PKT_SIZE, 0);
+        if (read == -1) {
+	    /*XXX Echo **/
+            LOG("Read finish => failed to receive or end receiving");
+            ERROR("Failed to receive");
+            keep_receiving = 0;
+            break;
+        }
+        /*Treat data */
+        pkt_t* pkt = pkt_new();
+        status = pkt_decode(buf, read, pkt);
+        if (status == PKT_OK) {
+            /** XXX packet TR = 1 */
+            /** XXX rework to break look ? */
+            if(pkt_get_length(pkt) == 0 && last_seqnum == pkt_get_seqnum(pkt)) {
+                LOG("Seqnum length 0 : %d", pkt_get_seqnum(pkt)); 
                 keep_receiving = 0;
+                pkt_del(pkt);
                 break;
             }
-            /*Treat data */
-            pkt_t* pkt = pkt_new();
-            status = pkt_decode(buf, read, pkt);
-            if (status == PKT_OK) {
-                /** XXX packet TR = 1 */
-                /** XXX rework to break look => && last_seqnum == pkt_get_seqnum(pkt) */
-                if(pkt_get_length(pkt) == 0 && last_seqnum == pkt_get_seqnum(pkt)) {
-                    LOG("Seqnum length 0 : %d", pkt_get_seqnum(pkt)); 
-                    keep_receiving = 0;
-                    pkt_del(pkt);
-                    break;
-                }
-                last_seqnum = pkt_get_seqnum(pkt);
+            last_seqnum = pkt_get_seqnum(pkt);
 
-                LOG("Last seqnum received : %d", last_seqnum);
-                send_response(pkt, sfd, --window);
+            LOG("Last seqnum received : %zu", last_seqnum);
+            send_response(pkt, sfd, --window_size);
 
-                if (minq_push(pkt_queue, pkt)) {
-                    ERROR("Failed to add pkt to queue.");
-                    return;
-                }
-                if (last_seqnum + 1 == MAX_SEQNUM)
-                    break;
-
-
+            if (minq_push(pkt_queue, pkt)) {
+                ERROR("Failed to add pkt to queue.");
+                return;
             }
+	    write_packet(f, pkt_queue, &window_size, &seqnum_expected);
         }
-        /* Empty the priority and append payload to the file*/
-        while (!minq_empty(pkt_queue)) {
-            pkt_t *pkt = (pkt_t *)minq_peek(pkt_queue);
-            size_t len = pkt_get_length(pkt);
-            write_file(f, pkt_get_payload(pkt), len);
-            minq_pop(pkt_queue);
-            pkt_del(pkt);
-            window ++;
-        }
-
+	pkt_del(pkt);
     }
-    LOG("end main loop..Close program");
+    LOG("End main loop..Close program");
     minq_del(pkt_queue);
 }
 
