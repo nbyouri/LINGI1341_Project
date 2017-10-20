@@ -156,9 +156,9 @@ pkt_gen_crc1(const pkt_t *pkt)
 uint32_t
 pkt_gen_crc2(const pkt_t *pkt)
 {
-     uLong crc = crc32(0L, Z_NULL, 0);
-     crc = crc32(crc, (Bytef *)pkt->payload, pkt_get_length(pkt));
-     return htonl((uint32_t)crc);
+    uLong crc = crc32(0L, Z_NULL, 0);
+    crc = crc32(crc, (Bytef *)pkt->payload, pkt_get_length(pkt));
+    return htonl((uint32_t)crc);
 }
 
 const char *
@@ -328,15 +328,15 @@ pkt_get_size(const pkt_t *pkt)
  * Fill pkt fields
  */
 void
-pkt_create(pkt_t* pkt, uint8_t type, uint8_t tr, uint8_t seqnum,
-           uint8_t window,uint16_t length, uint32_t timestamp, char* payload){
-	pkt_set_type(pkt, type);
-        pkt_set_tr(pkt, tr);
-        pkt_set_seqnum(pkt, seqnum);
-        pkt_set_window(pkt, window);
-        pkt_set_timestamp(pkt, timestamp);
-        pkt_set_payload(pkt, payload, length);
-        pkt_set_crc1(pkt, pkt_gen_crc1(pkt));
-        pkt_set_crc2(pkt, pkt_gen_crc2(pkt));
+pkt_create(pkt_t* pkt, uint8_t type,
+    uint8_t seqnum, uint8_t window, uint16_t length,
+    uint32_t timestamp, char* payload) {
+    pkt_set_type(pkt, type);
+    pkt_set_seqnum(pkt, seqnum);
+    pkt_set_window(pkt, window);
+    pkt_set_timestamp(pkt, timestamp);
+    pkt_set_payload(pkt, payload, length);
+    pkt_set_crc1(pkt, pkt_gen_crc1(pkt));
+    pkt_set_crc2(pkt, pkt_gen_crc2(pkt));
 
 }
