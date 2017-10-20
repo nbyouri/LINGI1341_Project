@@ -48,7 +48,7 @@
 #define MAX_PAYLOAD_SIZE    512
 #define MAX_PKT_SIZE        sizeof(pkt_t) + MAX_PAYLOAD_SIZE - sizeof(char *)
 #define ACK_PKT_SIZE        sizeof(pkt_t)
-#define MAX_WINDOW_SIZE     31
+#define MAX_WINDOW_SIZE     32
 #define MAX_SEQNUM          256
 #define IP_VERSION          AF_INET6
 #define IP_LENGTH           INET6_ADDRSTRLEN
