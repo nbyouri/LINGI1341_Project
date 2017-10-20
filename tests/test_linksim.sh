@@ -22,7 +22,7 @@ cleanup()
     exit 0
 }
 trap cleanup SIGINT  # Kill les process en arrière plan en cas de ^-C
-
+sleep 1
 # On démarre le transfert
 if ! ./sender localhost 1341 < input_file 2> sender.log ; then
   echo "Crash du sender!"

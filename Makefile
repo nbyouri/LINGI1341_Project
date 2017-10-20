@@ -21,20 +21,19 @@ receiver:
 sender:
 	${CC} ${CFLAGS} ${SEND_OBJS} -DPROGRAM_NAME=\"sender\" -o sender ${LDFLAGS}
 
-test:
-	@echo "\033[0;32mTesting with X delay\033[0m"	
-	@./tests/test_linksim.sh
-	@echo "\033[0;32mTesting transfer a file with size equal a packet\033[0m"
+tests:
+	@echo -ne "\033[0;32mTesting transfer a file with size equal a packet\033[0m\n"
 	@./tests/packet.sh
-	@echo "\033[0;32mTesting transfer a file with size smaller than window\033[0m"
+	@echo -ne "\033[0;32mTesting transfer a file with size smaller than window\033[0m\n"
 	@./tests/simple_file.sh
-	@echo "\033[0;32mTesting transfer a file with size higher than window\033[0m"
+	@echo -ne "\033[0;32mTesting transfer a file with size higher than window\033[0m\n"
 	@./tests/big_file.sh
-	@echo "\033[0;32mTesting decode a packet with his crc has changed\033[0m"
-	${CC} ${CFLAGS} -I./src ./tests/bad_packet.c src/pkt.c -o bad_packet ${LDFLAGS}
-	./bad_packet
 
-.PHONY: clean test
+# activate when selective repeat is functional
+#@echo "\033[0;32mTesting with X delay\033[0m"	
+#@./tests/test_linksim.sh
+
+.PHONY: clean tests
 
 clean:
 	@rm -f receiver sender
