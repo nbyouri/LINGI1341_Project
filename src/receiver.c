@@ -128,6 +128,7 @@ main(int argc, char **argv)
         while ((d = getopt(argc, argv, "f:")) != -1) {
             switch (d) {
             case 'f':
+                memset(filename, 0, BUFSIZ);
                 memcpy(filename, optarg, strlen(optarg));
                 have_file = 1;
                 break;
@@ -173,29 +174,11 @@ main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-
-#if 0
-        /* treat data */
-        LOG("Treating data");
-        size_t i = 0;
-        for (; buffer[i] != NULL && i < MAX_WINDOW_SIZE; i++) {
-            if (pkt_get_length(buffer[i]) > 0) {
-                fwrite(pkt_get_payload(buffer[i]), sizeof(char),
-                    pkt_get_length(buffer[i]), have_file ? f : stdout);
-                bytes_written += pkt_get_length(buffer[i]);
-                good_seqnum++;
-            }
-        }
-        LOG("bytes_written = %zu", bytes_written);
-#endif
     receive_data(have_file ? f : stdout, sfd);
-    close(sfd);
 
-#if 0 /* XXX LINUX BUG? */
     if (have_file && f != NULL) {
         fclose(f);
     }
-#endif
 
     return EXIT_SUCCESS;
 }
