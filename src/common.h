@@ -112,11 +112,13 @@ int                 write_file(FILE *, const char *, size_t);
 int                 file_size(FILE *);
 int                 file_set_position(FILE *, size_t);
 size_t              read_stdin(char **);
-int		    timeval_cmp(const struct timeval *left, const struct timeval *right);
-void	            timeval_diff(const struct timeval *a, const struct timeval *b, struct timeval *c);
+int		    timeval_cmp(const struct timeval *,
+                                const struct timeval *);
+void	            timeval_diff(const struct timeval *,
+                                 const struct timeval *, struct timeval *);
 int                 pkt_cmp(const void *, const void *);
-int 		    pkt_cmp_seqnum(const void*, const void*);
-int 		    pkt_cmp_seqnum2(const void*, const void*);
+int		    pkt_cmp_seqnum(const void*, const void*);
+int		    pkt_cmp_seqnum2(const void*, const void*);
 void	            update_time(struct timeval *clock);
 uint32_t            pack_timestamp(struct timeval);
 struct timeval      unpack_timestamp(uint32_t);
@@ -153,7 +155,8 @@ uint32_t            pkt_gen_crc1(const pkt_t *);
 uint32_t            pkt_gen_crc2(const pkt_t *);
 void                pkt_to_string(const pkt_t *);
 size_t              nb_pkt_in_buffer(const ssize_t);
-void		    pkt_create(pkt_t*, uint8_t, uint8_t, uint8_t, uint8_t, uint16_t, uint32_t, char*);
+void		    pkt_create(pkt_t*, uint8_t, uint8_t, uint8_t,
+                               uint16_t, uint32_t, char*);
 
 /* net.c function prototypes */
 const char*         real_address(const char *, struct sockaddr_in6 *);
