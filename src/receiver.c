@@ -91,9 +91,9 @@ receive_data (FILE *f, int sfd)
         char buf[MAX_PKT_SIZE];
         ssize_t read = recv(sfd, buf, MAX_PKT_SIZE, 0);
         if (read == -1) {
-	    /* If the sender wanted to send only 1 packet*/
+	    /* If the sender wanted to send only 1 packet XXX Handle this another way*/
 	    if (seqnum_expected == 2)
-		break;
+	        break;
 	    ERROR("Error receiving");
             keep_receiving = 0;
             continue;
@@ -114,7 +114,10 @@ receive_data (FILE *f, int sfd)
 
             LOG("Last seqnum received : %zu", last_seqnum);
             send_response(pkt, sfd, --window_size);
-
+	    /* If the packet is truncated, ignore it after sending a NACK */
+	    if (pkt_get_tr(pkt) == 1){
+	        continue;
+	    }
             if (minq_push(pkt_queue, pkt)) {
                 ERROR("Failed to add pkt to queue.");
                 return;
