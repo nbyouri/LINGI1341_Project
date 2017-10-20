@@ -60,9 +60,9 @@ get_payload(char **buf, FILE *f, char *data, size_t offset, size_t length)
 /*
  *
  * Build initial window
- *
+ * FIXME maybe re-use allocated pkt_t instead of pkt_new() everytime.
  */
-static void
+static int
 make_window(pkt_t *sliding_window[], FILE *f, char *data,
 	    size_t *nb_pkt, size_t total_pkt_to_send,
 	    size_t *data_offset, size_t *left_to_copy,
@@ -75,6 +75,8 @@ make_window(pkt_t *sliding_window[], FILE *f, char *data,
         if (i >= total_pkt_to_send)
             break;
 
+        //if (sliding_window[i] != NULL)
+        //    pkt_del(sliding_window[i]);
         sliding_window[i] = pkt_new();
         char *buf;
 
@@ -108,6 +110,7 @@ make_window(pkt_t *sliding_window[], FILE *f, char *data,
         buf = NULL;
 	(*nb_pkt)++;
     }
+    return i;
 }
 
 /*
@@ -119,10 +122,12 @@ static void
 send_terminating_packet(int sfd, uint8_t seqnum) {
     size_t len = sizeof(pkt_t);
     char *buf = malloc(len);
+    memset(buf, 0, len);
     pkt_t *end_pkt = pkt_new();
     pkt_set_type(end_pkt, PTYPE_DATA);
     pkt_set_seqnum(end_pkt, seqnum);
     if (pkt_encode(end_pkt, buf, &len) != PKT_OK) {
+        LOG("seqnum of pkt to be written %d", pkt_get_seqnum(end_pkt));
 	ERROR("Failed to encode end_pkt");
 	goto end;
     }
@@ -158,11 +163,12 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
     size_t  i = 0;
     size_t  cur_slot = 0;
     size_t  cur_seqnum = 0;
+    size_t  cur_window_size = MAX_WINDOW_SIZE;
     int	    keep_sending = 1;
     pkt_t   *sliding_window[MAX_WINDOW_SIZE];
 
     /* Build the initial sliding window */
-    make_window(sliding_window, f, data, &nb_pkt,
+    cur_window_size = make_window(sliding_window, f, data, &nb_pkt,
 		total_pkt_to_send, &data_offset,
 		&left_to_copy, &seqnum, window);
 
@@ -219,9 +225,12 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 			}
                         if (left_to_send > 0 && nb_pkt_win == 0) {
                             cur_slot = 0;
-                            make_window(sliding_window, f, data, &nb_pkt,
+                            for (i = 0; i < MAX_WINDOW_SIZE; i++) {
+                                pkt_del(sliding_window[i]);
+                            }
+                            cur_window_size = make_window(sliding_window, f, data, &nb_pkt,
                                         total_pkt_to_send, &data_offset,
-                                        &left_to_copy, &seqnum, window);
+                                        &left_to_copy, &seqnum, window) + 1;
                             if (left_to_send < MAX_WINDOW_SIZE)
                                 nb_pkt_win = left_to_send;
                             else
@@ -239,11 +248,9 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
     }
 
     /* Cleanup */
-    if (nb_pkt > MAX_WINDOW_SIZE)
-        nb_pkt = MAX_WINDOW_SIZE;
-
-    for (i = 0; i < nb_pkt; i++) {
-	pkt_del(sliding_window[i]);
+    for (i = 0; i < cur_window_size; i++) {
+        LOG("Deleting packet %zu", i);
+        pkt_del(sliding_window[i]);
     }
 
     send_terminating_packet(sfd, seqnum);
