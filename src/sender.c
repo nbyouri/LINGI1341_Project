@@ -78,6 +78,7 @@ make_window(pkt_t *sliding_window[], FILE *f, char *data,
         sliding_window[i] = pkt_new();
         char *buf;
 
+        LOG("make_window: creating pkt %d", *seqnum);
         pkt_set_type(sliding_window[i], PTYPE_DATA);
         pkt_set_tr(sliding_window[i], 0);
         pkt_set_seqnum(sliding_window[i], *seqnum);
@@ -176,7 +177,6 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 	size_t len = MAX_PKT_SIZE;
 
         /* Send the packet */
-        LOG("Sending packet with seqnum %d", pkt_get_seqnum(sliding_window[cur_slot]));
 	if (window == 0) {
 		LOG("Window is full, we need some ACKs");
 	} else {
@@ -211,11 +211,14 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 			left_to_send--;
                         nb_pkt_win--;
 			if (left_to_send > 0) {
-				cur_slot = cur_seqnum = seqnum = pkt_get_seqnum(ack);
+                                cur_slot++;
+				cur_seqnum = seqnum = pkt_get_seqnum(ack);
+                                LOG("cur_seqnum = %zu, cur_slot = %zu, left_to_send = %zu", cur_seqnum, cur_slot, left_to_send);
 			} else {
 				keep_sending = 0;
 			}
                         if (left_to_send > 0 && nb_pkt_win == 0) {
+                            cur_slot = 0;
                             make_window(sliding_window, f, data, &nb_pkt,
                                         total_pkt_to_send, &data_offset,
                                         &left_to_copy, &seqnum, window);
@@ -224,12 +227,10 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
                             else
                                 nb_pkt_win = MAX_WINDOW_SIZE;
 			}
-                        cur_slot %= MAX_WINDOW_SIZE;
 		} else {
 			LOG("Out of sequence ACK (%d), %zu!", pkt_get_seqnum(ack), cur_seqnum);
 		}
 	}
-
 	pkt_del(ack);
 	free(buf);
 	buf = NULL;
@@ -238,7 +239,10 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
     }
 
     /* Cleanup */
-    for (i = 0; i < MAX_WINDOW_SIZE; i++) {
+    if (nb_pkt > MAX_WINDOW_SIZE)
+        nb_pkt = MAX_WINDOW_SIZE;
+
+    for (i = 0; i < nb_pkt; i++) {
 	pkt_del(sliding_window[i]);
     }
 
