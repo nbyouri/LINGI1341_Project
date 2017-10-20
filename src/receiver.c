@@ -86,17 +86,17 @@ receive_data (FILE *f, int sfd)
 
     while (keep_receiving) {
         /* Packets reception in priority queue */
-        LOG("Begin for");
         if (!keep_receiving) break;
         /* Receive data */
         char buf[MAX_PKT_SIZE];
         ssize_t read = recv(sfd, buf, MAX_PKT_SIZE, 0);
         if (read == -1) {
-	    /*XXX Echo **/
-            LOG("Read finish => failed to receive or end receiving");
-            ERROR("Failed to receive");
+	    /* If the sender wanted to send only 1 packet*/
+	    if (seqnum_expected == 2)
+		break;
+	    ERROR("Error receiving");
             keep_receiving = 0;
-            break;
+            continue;
         }
         /*Treat data */
         pkt_t* pkt = pkt_new();
@@ -105,10 +105,10 @@ receive_data (FILE *f, int sfd)
             /** XXX packet TR = 1 */
             /** XXX rework to break look ? */
             if(pkt_get_length(pkt) == 0 && last_seqnum == pkt_get_seqnum(pkt)) {
-                LOG("Seqnum length 0 : %d", pkt_get_seqnum(pkt)); 
+                LOG("Final packet received : 0 : %d", pkt_get_seqnum(pkt)); 
                 keep_receiving = 0;
                 pkt_del(pkt);
-                break;
+                continue;
             }
             last_seqnum = pkt_get_seqnum(pkt);
 
@@ -121,9 +121,7 @@ receive_data (FILE *f, int sfd)
             }
 	    write_packet(f, pkt_queue, &window_size, &seqnum_expected);
         }
-	pkt_del(pkt);
     }
-    LOG("End main loop..Close program");
     minq_del(pkt_queue);
 }
 
