@@ -25,7 +25,9 @@ send_response (pkt_t* pkt, int sfd, uint8_t window){
 	//LOG("Send packet ack seqnum %d", seqnum);
 	if (seqnum + 1 >= MAX_SEQNUM)
 		seqnum = 0;
-	else seqnum ++;
+	else seqnum = seqnum + 1 ;
+	LOG("ACK Seqnum sent : %d", seqnum);
+	LOG("ACK Window : %d \n", window);
 	/*XXX Timestamp => last pkt received */
 	pkt_create(pkt_resp, type, 0, seqnum, window, 0, pkt_get_timestamp(pkt), NULL);
 	size_t len = ACK_PKT_SIZE;
@@ -38,7 +40,8 @@ send_response (pkt_t* pkt, int sfd, uint8_t window){
 	if (send(sfd, buf, len, 0) == -1) {
 		ERROR("Send ACK/NACK packet failed");
 		return;
-	} 	
+	} 
+	//getchar();	
 		
 }
 
@@ -59,13 +62,16 @@ receive_data (FILE *f, int sfd)
 	
 	while (keep_receiving) {
 		/* Packets reception in priority queue */
+		LOG("Begin for");
 		for (nb_packet = 0; nb_packet < MAX_WINDOW_SIZE; nb_packet++) {
 			if (!keep_receiving) break;
 			/* Receive data */
 			char buf[MAX_PKT_SIZE];
 			ssize_t read = recv(sfd, buf, MAX_PKT_SIZE, 0);
 			if (read == -1) {
+				LOG("Read finish => failed to receive or end receiving");
 				ERROR("Failed to receive");
+				keep_receiving = 0;
 				break;
 			}
 			/*Treat data */
@@ -74,18 +80,25 @@ receive_data (FILE *f, int sfd)
 			if (status == PKT_OK) {
 				/** XXX packet TR = 1 */
 				/** XXX rework to break look => && last_seqnum == pkt_get_seqnum(pkt) */
-				if(pkt_get_length(pkt) == 0) { 
+				if(pkt_get_length(pkt) == 0 && last_seqnum == pkt_get_seqnum(pkt)) {
+					LOG("Seqnum length 0 : %d", pkt_get_seqnum(pkt)); 
 					keep_receiving = 0;
-					LOG("Fin de la loop");
 					pkt_del(pkt);
 					break;
 				}
+				last_seqnum = pkt_get_seqnum(pkt);
+				
+				LOG("Last seqnum received : %d", last_seqnum);
+				send_response(pkt, sfd, --window);
+	
 				if (minq_push(pkt_queue, pkt)) {
 					ERROR("Failed to add pkt to queue.");
 					return;
 				}
-				last_seqnum = pkt_get_seqnum(pkt);
-				send_response(pkt, sfd, --window);	
+				if (last_seqnum + 1 == MAX_SEQNUM)
+					break;
+				
+					
 			}			
 		}
 		/* Empty the priority and append payload to the file*/
@@ -99,7 +112,7 @@ receive_data (FILE *f, int sfd)
 		}
 
 	}
-	LOG("end loop");
+	LOG("end main loop..Close program");
 	minq_del(pkt_queue);
 }
 
