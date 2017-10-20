@@ -46,7 +46,7 @@ parse_port(const char *string)
 int
 file_exists(const char *path)
 {
-    struct stat fs;
+    struct stat fs = {0};
 
     return stat(path, &fs);
 }
@@ -122,15 +122,18 @@ read_stdin(char **buf)
         ERROR("Failed to malloc *buf\n");
         return E_NOMEM;
     }
+    memset(*buf, 0, BUFSIZ);
     size_t len = 0;
     while (!feof(stdin)) {
-        size_t read = fread(*buf + len, sizeof(char), BUFSIZ, stdin);
-        read *= sizeof(char);
+        char tmp[BUFSIZ];
+        memset(tmp, 0, BUFSIZ);
+        size_t read = fread(tmp, 1, BUFSIZ, stdin);
         *buf = realloc(*buf, len + read);
         if (*buf == NULL) {
             ERROR("Failed to realloc buffer for stdin\n");
             return E_NOMEM;
         }
+        memcpy(*buf + len, tmp, read);
         len += read;
     }
     return len;
