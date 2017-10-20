@@ -32,17 +32,18 @@ send_response (pkt_t* pkt, int sfd, uint8_t window){
 	pkt_create(pkt_resp, type, 0, seqnum, window, 0, pkt_get_timestamp(pkt), NULL);
 	size_t len = ACK_PKT_SIZE;
 	buf = malloc(len);
-	memset(buf, '\0', len);
+	memset(buf, 0, len);
 	if (pkt_encode(pkt_resp, buf, &len) != PKT_OK){
 		ERROR("Encode ACK/NACK packet failed");
 		return;
-	} 
+        }
 	if (send(sfd, buf, len, 0) == -1) {
 		ERROR("Send ACK/NACK packet failed");
 		return;
-	} 
-	//getchar();	
-		
+	}
+        free(buf);
+        buf = NULL;
+        pkt_del(pkt_resp);
 }
 
 
