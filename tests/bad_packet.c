@@ -15,9 +15,10 @@ int main() {
 	pkt_set_type(pkt, PTYPE_DATA);
 	pkt_set_window(pkt, 1);
 	pkt_set_payload(pkt, "test", sizeof("test"));
-	pkt_set_crc(pkt, pkt_gen_crc(pkt));
 	pkt_set_timestamp(pkt, 0);
 	pkt_set_seqnum(pkt, 0);
+	pkt_set_crc1(pkt, pkt_gen_crc1(pkt));
+        pkt_set_crc2(pkt, pkt_gen_crc2(pkt));
 
 	char    *encodebuf = malloc(MAX_PKT_SIZE);
 	size_t  encodebuflen = MAX_PKT_SIZE;
@@ -38,6 +39,12 @@ int main() {
 	if(pkt_decode(encodebuf, MAX_PKT_SIZE ,pktdecode) != PKT_OK) {
 		return EXIT_SUCCESS;
 	}
+        pkt_del(pkt);
+        pkt_del(pktdecode);
+        free(encodebuf);
+        encodebuf= NULL;
+        free(decodebuf);
+        decodebuf = NULL;
 	
 	return EXIT_FAILURE;
 }

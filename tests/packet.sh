@@ -40,7 +40,7 @@ if kill -0 $receiver_pid &> /dev/null ; then
 fi
 
 # On vérifie que le transfert s'est bien déroulé
-if [[ "$(md5 input_file | awk '{print $4}')" != "$(md5 received_file | awk '{print $4}')" ]]; then
+if [[ "$(md5sum input_file | awk '{print $4}')" != "$(md5sum received_file | awk '{print $4}')" ]]; then
   echo "Le transfert a corrompu le fichier!"
   echo "Diff binaire des deux fichiers: (attendu vs produit)"
   diff -C 9 <(od -Ax -t x1z input_file) <(od -Ax -t x1z received_file)
