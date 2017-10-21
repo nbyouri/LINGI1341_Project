@@ -10,6 +10,20 @@
  */
 #include "common.h"
 
+/* Check if the packet must be ignored based on statements */
+static pkt_status_code
+pkt_check (pkt_t *pkt) {
+    pkt_status_code status = PKT_OK;
+    if (pkt_get_type(pkt) != PTYPE_DATA)
+        status = E_TYPE;
+    else if (pkt_get_tr(pkt) == 1)
+        status = E_TR;
+    else if (pkt_get_length(pkt) > MAX_PAYLOAD_SIZE)
+        status = E_LENGTH; 
+    return status;
+}
+
+
 /* Empty the priority queue and append payload to the file*/
 static void 
 write_packet(FILE *f, minqueue_t *pkt_queue, size_t *window_size, uint8_t *seqnum_expected) {
@@ -45,7 +59,7 @@ send_response(pkt_t *pkt, int sfd, uint8_t window){
     else {
         type = PTYPE_NACK;
     }
-    //LOG("Send packet ack seqnum %d", seqnum);
+    LOG("Send packet ack seqnum before increment %d", seqnum);
     increment_seqnum(&seqnum);
     LOG("ACK Seqnum sent : %d", seqnum);
     LOG("ACK Window : %d \n", window);
@@ -88,6 +102,7 @@ receive_data (FILE *f, int sfd)
         if (!keep_receiving) break;
         /* Receive data */
         char buf[MAX_PKT_SIZE];
+        memset(buf, 0, MAX_PKT_SIZE);
         ssize_t read = recv(sfd, buf, MAX_PKT_SIZE, 0);
         if (read == -1) {
 	    ERROR("Error receiving");
@@ -97,28 +112,43 @@ receive_data (FILE *f, int sfd)
         /*Treat data */
         pkt_t* pkt = pkt_new();
         status = pkt_decode(buf, read, pkt);
+        if (status == PKT_OK)
+            status = pkt_check(pkt);
 	LOG("Expected seqnum to receive : %d", seqnum_expected);
         if (status == PKT_OK) {
-	    LOG("Seqnum received : %d", pkt_get_seqnum(pkt));
+            LOG("Seqnum received : %d", pkt_get_seqnum(pkt));
             /** XXX rework to break look ? */
             if(pkt_get_length(pkt) == 0 && (seqnum_expected - 1 == pkt_get_seqnum(pkt) || seqnum_expected == 1) ) {
+	        /*Send ACK for final transaction*/
+                pkt_t* pkt_resp = pkt_new();
+                size_t len = ACK_PKT_SIZE;
+                char* tmp = malloc(len);
+                memset(tmp, 0, len);
+                if (pkt_encode(pkt_resp, tmp, &len) != PKT_OK){
+        	ERROR("Encode ACK/NACK packet failed");
+        	return;
+    		}
+    	        if (send(sfd,tmp, len, 0) == -1) {
+                    ERROR("Send ACK/NACK packet failed");
+        	    return;
+    	         }
+                pkt_del(pkt_resp);
                 LOG("Final packet received...End of transaction"); 
                 keep_receiving = 0;
                 pkt_del(pkt);
                 continue;
             }
-            //last_seqnum = pkt_get_seqnum(pkt);
             send_response(pkt, sfd, --window_size);
-	    /* If the packet is truncated, ignore it after sending a NACK */
-	    if (pkt_get_tr(pkt) == 1){
-	        continue;
-	    }
+
             if (minq_push(pkt_queue, pkt)) {
                 ERROR("Failed to add pkt to queue.");
                 return;
             }
 	    write_packet(f, pkt_queue, &window_size, &seqnum_expected);
-        }
+
+	}
+        if (status == E_TR) 
+	    send_response(pkt, sfd, window_size);
     }
     minq_del(pkt_queue);
 }
