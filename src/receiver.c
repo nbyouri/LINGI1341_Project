@@ -10,25 +10,67 @@
  */
 #include "common.h"
 
+/*
+ * Fill window and check which packet is missing
+ * return 1 to authorize the writing, else 0
+ */
+
+static int
+fill_window(minqueue_t *pkt_queue, pkt_t* pkt, size_t* window_size, uint8_t* min_missing_pkt) {
+    uint8_t actual_seqnum = pkt_get_seqnum(pkt);
+    if (minq_push(pkt_queue, pkt)) {
+        ERROR("Failed to add pkt to queue.");
+        return 0;
+    }
+    if (actual_seqnum == *min_missing_pkt) {
+        increment_seqnum(min_missing_pkt);
+        (*window_size)--;
+        return 1;
+    }
+    /* Check if the packet is not out sequenced */
+    if((*min_missing_pkt - actual_seqnum) < MAX_WINDOW_SIZE)
+        (*window_size)--;
+    
+    return 0;
+    
+}
+
 /* Empty the priority queue and append payload to the file*/
-static void 
-write_packet(FILE *f, minqueue_t *pkt_queue, size_t *window_size, uint8_t *seqnum_expected) {
-	int keep_writing = 1;
-        while (!minq_empty(pkt_queue) && keep_writing) {
-            pkt_t *pkt = (pkt_t *)minq_peek(pkt_queue);
-            size_t len = pkt_get_length(pkt);
-	    /* Finish writing if we need another packet */
-	    if (*seqnum_expected != pkt_get_seqnum(pkt)) {
-	        LOG("Wait for missing packet seq : %d", *seqnum_expected);
-	    	keep_writing = 0;
-	    } else {
-            	write_file(f, pkt_get_payload(pkt), len);
-            	minq_pop(pkt_queue);
-            	(*window_size)++;
-		increment_seqnum(seqnum_expected);
+static int
+write_packet(FILE *f, minqueue_t *pkt_queue, size_t *window_size, uint8_t *seqnum_to_send, ssize_t* last_seqnum_written, uint8_t* min_missing_pkt) {
+    int keep_writing = 1;
+    uint8_t last_seqnum = 0;
+    while (!minq_empty(pkt_queue) && keep_writing) {
+        pkt_t *pkt = (pkt_t *)minq_peek(pkt_queue);
+        size_t len = pkt_get_length(pkt);
+        uint8_t actual_seqnum = pkt_get_seqnum(pkt);
+	if(*min_missing_pkt < actual_seqnum) {
+	    LOG("Writing stopped, wait for missing packet, seqnum %d", *min_missing_pkt);
+	    keep_writing = 0;	
+	}
+	else {
+	    if (*last_seqnum_written != actual_seqnum) {
+	    	write_file(f, pkt_get_payload(pkt), len);
+		*last_seqnum_written = actual_seqnum;
 	    }
+	    minq_pop(pkt_queue);
+	    (*window_size)++;
+	    if (*min_missing_pkt == actual_seqnum)
+                increment_seqnum(min_missing_pkt);
+	    
+	    last_seqnum = actual_seqnum;
+	}
+	    
             pkt_del(pkt);
         }
+        increment_seqnum(&last_seqnum);
+	/* Check if we sent this ACK */
+	if (*seqnum_to_send == last_seqnum)
+	    return 0;
+	else {
+	    *seqnum_to_send = last_seqnum;
+	    return 1;
+	}
 } 
 
 
@@ -46,7 +88,7 @@ send_response(pkt_t *pkt, int sfd, uint8_t seqnum, uint8_t window){
     }
     //LOG("Send packet ack seqnum %d", seqnum);
     LOG("ACK Seqnum sent : %d", seqnum);
-    LOG("ACK Window : %d \n", window);
+    LOG("ACK Window : %d", window);
     /*XXX Timestamp => last pkt received */
     pkt_create(pkt_resp, type, seqnum, window, 0, pkt_get_timestamp(pkt), NULL);
     size_t len = ACK_PKT_SIZE;
@@ -70,13 +112,15 @@ static void
 receive_data (FILE *f, int sfd)
 {
     pkt_status_code status = 0;
-    //size_t nb_packet = 0;
     int keep_receiving = 1;
-    size_t window_size = MAX_WINDOW_SIZE;
-    uint8_t seqnum_expected = 0;
-    uint8_t seqnum_to_send = 0;
+    int ready_to_write = 0;
+    int ready_to_send = 0;
+    size_t window_size = MAX_WINDOW_SIZE - 1;
+    ssize_t last_seqnum_written = -1;
+    uint8_t seqnum_ack = 0;
+    uint8_t min_missing_pkt = 0;
     minqueue_t* pkt_queue = NULL;
-
+    struct pollfd fds[]= {{sfd, POLLIN | POLLPRI, 0}};
     if (!(pkt_queue = minq_new(pkt_cmp_seqnum, pkt_cmp_seqnum2))) {
         ERROR("Failed to initialize PQ");
         return;
@@ -85,47 +129,50 @@ receive_data (FILE *f, int sfd)
     while (keep_receiving) {
         /* Packets reception in priority queue */
         if (!keep_receiving) break;
-        /* Receive data */
-        char buf[MAX_PKT_SIZE];
-        ssize_t read = recv(sfd, buf, MAX_PKT_SIZE, 0);
-        if (read == -1) {
-	    ERROR("Error receiving");
-            keep_receiving = 0;
-            continue;
-        }
-        /*Treat data */
-        pkt_t* pkt = pkt_new();
-        status = pkt_decode(buf, read, pkt);
-	LOG("Expected seqnum to receive : %d", seqnum_expected);
-        if (status == PKT_OK) {
-	    LOG("Seqnum received : %d", pkt_get_seqnum(pkt));
-            /** XXX rework to break look ? */
-            if(pkt_get_length(pkt) == 0 && (seqnum_expected - 1 == pkt_get_seqnum(pkt) || seqnum_expected == 1) ) {
-		send_response(pkt, sfd, 0, window_size);
-                LOG("Final packet received...End of transaction"); 
-                keep_receiving = 0;
-                pkt_del(pkt);
-                continue;
-            }
-            //last_seqnum = pkt_get_seqnum(pkt);
-            
-	    /* If the packet is truncated, ignore it after sending a NACK */
-	    if (pkt_get_tr(pkt) == 1){
-		send_response(pkt, sfd, pkt_get_seqnum(pkt), window_size);
-	        continue;
-	    } else {
-	    	seqnum_to_send = pkt_get_seqnum(pkt);
-		increment_seqnum(&seqnum_to_send);
-		send_response(pkt, sfd, seqnum_to_send, --window_size);
-	    }
-            if (minq_push(pkt_queue, pkt)) {
-                ERROR("Failed to add pkt to queue.");
-                return;
-            }
-	    write_packet(f, pkt_queue, &window_size, &seqnum_expected);
+	int ev = poll(fds, 1, 2000);
+	if (ev == -1) {
+	    ERROR("Poll failed");
+	    break;
+	}
+	else if (ev == 0) {
+	    LOG("Time out...Waiting for more packets");	
+	}
+	else {	
+	/* Receive data */
+		char buf[MAX_PKT_SIZE];
+		ssize_t read = recv(sfd, buf, MAX_PKT_SIZE, 0);
+		if (read == -1) {
+		    ERROR("Error receiving");
+		    keep_receiving = 0;
+		    continue;
+		}
+		/*Treat data */
+		pkt_t* pkt = pkt_new();
+		status = pkt_decode(buf, read, pkt);
+		if (status == PKT_OK) {
+		    /** XXX rework to break look ? */
+		    if (pkt_get_length(pkt) == 0 && last_seqnum_written == pkt_get_seqnum(pkt)) {
+			send_response(pkt, sfd, 0, window_size); 
+		        keep_receiving = 0;
+		        pkt_del(pkt);
+		        continue;
+		    }
+		    /* Send NACK and ignore packet if it's truncated */
+		    if (pkt_get_tr(pkt) == 1){
+		    	send_response(pkt, sfd, pkt_get_seqnum(pkt), window_size);
+			continue;
+		    }
+		    ready_to_write = fill_window( pkt_queue, pkt, &window_size, &min_missing_pkt);
+		    if(ready_to_write)
+		    	ready_to_send = write_packet(f, pkt_queue, &window_size, &seqnum_ack, &last_seqnum_written, &min_missing_pkt);
+		    if(ready_to_send)
+			send_response(pkt, sfd, seqnum_ack, window_size);
+		   
+		   }
         }
     }
     minq_del(pkt_queue);
+    LOG("End of transaction");
 }
 
 int
