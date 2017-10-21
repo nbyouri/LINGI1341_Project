@@ -30,7 +30,7 @@ array_slide(pkt_t *a[], size_t size)
  */
 static char*
 get_payload(FILE *f, char *data, size_t *data_offset,
-            size_t *left_to_copy, size_t *length)
+    size_t *left_to_copy, size_t *length)
 {
     /* First find out how much we need to get */
     *length = MAX_PAYLOAD_SIZE;
@@ -138,6 +138,7 @@ static void
 send_terminating_packet(int sfd, uint8_t seqnum) {
     size_t len = sizeof(pkt_t);
     char *buf = malloc(len);
+    /* XXX functionalise */
     memset(buf, 0, len);
     pkt_t *end_pkt = pkt_new();
     pkt_set_type(end_pkt, PTYPE_DATA);
@@ -151,10 +152,58 @@ send_terminating_packet(int sfd, uint8_t seqnum) {
         goto end;
     }
 
+    char *ack_buf = malloc(ACK_PKT_SIZE);
+    if (ack_buf == NULL) {
+        ERROR("Failed to allocate response_buf");
+        goto end;
+    }
+    pkt_t *ack = pkt_new();
+    struct pollfd fds[] = { { sfd, POLLIN|POLLPRI, 0 } };
+
+    int ev = poll(fds, 1, 2000);
+    if (ev == -1) {
+        ERROR("Poll failed %s", strerror(errno));
+        goto end;
+    } else if (ev == 0) {
+        INFO("Failed to receive ACK for terminating pkt, resending...");
+        ssize_t rec = recv(sfd, ack_buf, 1, MSG_PEEK | MSG_DONTWAIT);
+        if (rec == -1) {
+            INFO("Client must have disconnected, bye! (%s).", strerror(errno));
+        }
+        free(buf);
+        buf = NULL;
+        pkt_del(ack);
+        free(ack_buf);
+        ack_buf = NULL;
+        if (rec != -1) {
+            send_terminating_packet(sfd, seqnum);
+        }
+    } else {
+        /* XXX functinalise */
+        memset(ack_buf, '\0', ACK_PKT_SIZE);
+        if (recv(sfd, ack_buf, ACK_PKT_SIZE, 0) == -1) {
+            ERROR("Failed to receive an ack");
+            goto ack;
+        }
+        if (pkt_decode(ack_buf, ACK_PKT_SIZE, ack) != PKT_OK) {
+            ERROR("Failed to decode ack");
+            goto ack;
+        }
+        if (pkt_get_type(ack) == PTYPE_ACK) {
+            LOG("ACK for terminating packet received.");
+            goto ack;
+        }
+    }
 end:
     pkt_del(end_pkt);
     free(buf);
     buf = NULL;
+    return;
+ack:
+    pkt_del(ack);
+    free(ack_buf);
+    ack_buf = NULL;
+    goto end;
 }
 
 /*
@@ -202,6 +251,8 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
         total_pkt_to_send, &data_offset,
         &left_to_copy, &seqnum, window);
 
+    struct pollfd fd[] = { { sfd, POLLIN|POLLPRI, 0 } };
+
     /* Main loop */
     while (keep_sending) {
         if (left_to_send == 0) {
@@ -215,6 +266,8 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
         if (window == 0) {
             LOG("Window is full, we need some ACKs");
         } else {
+            window--;
+            /* XXX functionalise */
             memset(buf, '\0', MAX_PKT_SIZE);
             if (pkt_encode(sliding_window[cur_slot], buf, &len) != PKT_OK) {
                 ERROR("Failed to encode packet %zu", cur_seqnum);
@@ -227,19 +280,32 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
             }
         }
 
-        /* Listen for an ACK */
-        char *response_buf = malloc(ACK_PKT_SIZE);
-        pkt_t *ack = pkt_new();
-        memset(response_buf, '\0', ACK_PKT_SIZE);
-        if (recv(sfd, response_buf, ACK_PKT_SIZE, 0) == -1) {
-            ERROR("Failed to receive an ack");
-            keep_sending = 0;
-        }
-        if (pkt_decode(response_buf, ACK_PKT_SIZE, ack) != PKT_OK) {
-            ERROR("Failed to decode ack");
-            keep_sending = 0;
-        }
-        if (pkt_get_type(ack) == PTYPE_ACK) {
+        /* Poll for incoming data 2s */
+        int ev = poll(fd, 1, 2000);
+
+        if (ev == -1) {
+            ERROR("Poll failed %s", strerror(errno));
+            return;
+        } else if (ev == 0) {
+            INFO("Time-out, we have not received an ACK in the last 2seconds");
+            /* Deal with the loss of the first packet */
+            if (window == 0)
+                window++;
+        } else {
+            /* Listen for an ACK */
+            char *response_buf = malloc(ACK_PKT_SIZE);
+            pkt_t *ack = pkt_new();
+            /* XXX functinalise */
+            memset(response_buf, '\0', ACK_PKT_SIZE);
+            if (recv(sfd, response_buf, ACK_PKT_SIZE, 0) == -1) {
+                ERROR("Failed to receive an ack");
+                keep_sending = 0;
+            }
+            if (pkt_decode(response_buf, ACK_PKT_SIZE, ack) != PKT_OK) {
+                ERROR("Failed to decode ack");
+                keep_sending = 0;
+            }
+            if (pkt_get_type(ack) == PTYPE_ACK) {
                 LOG("ACK for packet %zu", cur_seqnum);
                 /* XXX check for out of sequence ACKs? */
                 left_to_send--;
@@ -249,33 +315,36 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
                  */
                 if (left_to_send >= MAX_WINDOW_SIZE &&
                     seqnum_succ(pkt_get_seqnum(sliding_window[0]),
-                            pkt_get_seqnum(ack))) {
+                        pkt_get_seqnum(ack))) {
                     cur_seqnum = pkt_get_seqnum(ack);
+                    window = pkt_get_window(ack);
                     LOG("cur_seqnum = %zu, cur_slot = %zu, left_to_send = %zu", cur_seqnum, cur_slot, left_to_send);
                     /* Slide window XXX enable sliding by more than one slot at once, cumulative acks */
                     slide_window(sliding_window, f, data,
-                                 &data_offset, &left_to_copy, &seqnum, window);
-                /* If we don't need to slide the window,
-                 * if the current buffer is smaller than max window size
-                 */
+                        &data_offset, &left_to_copy, &seqnum, window);
+                    /* If we don't need to slide the window,
+                     * if the current buffer is smaller than max window size
+                     */
                 } else if (left_to_send > 0) {
                     LOG("cur_seqnum = %zu, cur_slot = %zu, left_to_send = %zu", cur_seqnum, cur_slot, left_to_send);
                     cur_seqnum = seqnum = pkt_get_seqnum(ack);
+                    window = pkt_get_window(ack);
                     cur_slot++;
                     cur_window_size = cur_slot + 1;
                 } else {
                     keep_sending = 0;
                 }
-        /* Deal with NACKs, go back to the truncated pkt */
-        } else if (pkt_get_type(ack) == PTYPE_NACK) {
-            cur_slot = pkt_get_seqnum(ack) % MAX_WINDOW_SIZE;
+                /* Deal with NACKs, go back to the truncated pkt */
+            } else if (pkt_get_type(ack) == PTYPE_NACK) {
+                cur_slot = pkt_get_seqnum(ack) % MAX_WINDOW_SIZE;
+            }
+            pkt_del(ack);
+            free(response_buf);
+            response_buf = NULL;
         }
 
-        pkt_del(ack);
         free(buf);
         buf = NULL;
-        free(response_buf);
-        response_buf = NULL;
     }
 
     /* Cleanup */
