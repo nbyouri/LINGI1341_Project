@@ -38,7 +38,8 @@ write_packet(FILE *f, minqueue_t *pkt_queue, size_t *window_size, uint8_t *seqnu
 	    } else {
             	write_file(f, pkt_get_payload(pkt), len);
             	minq_pop(pkt_queue);
-            	(*window_size)++;
+		if((*window_size) < MAX_WINDOW_SIZE)
+            		(*window_size)++;
 		increment_seqnum(seqnum_expected);
 	    }
             pkt_del(pkt);
@@ -88,7 +89,7 @@ receive_data (FILE *f, int sfd)
     pkt_status_code status = 0;
     //size_t nb_packet = 0;
     int keep_receiving = 1;
-    size_t window_size = MAX_WINDOW_SIZE;
+    size_t window_size = MAX_WINDOW_SIZE - 1;
     uint8_t seqnum_to_send = 0;
     uint8_t seqnum_expected = 0;
     minqueue_t* pkt_queue = NULL;
@@ -114,6 +115,8 @@ receive_data (FILE *f, int sfd)
         pkt_t* pkt = pkt_new();
         status = pkt_check(pkt, pkt_decode(buf, read, pkt));
 	LOG("Expected seqnum to receive : %d", seqnum_expected);
+	if (status == E_TR) 
+	    send_response(pkt, sfd, pkt_get_seqnum(pkt), window_size);
         if (status == PKT_OK) {
             LOG("Seqnum received : %d", pkt_get_seqnum(pkt));
             /** XXX rework to break look ? */
@@ -139,8 +142,7 @@ receive_data (FILE *f, int sfd)
 	    write_packet(f, pkt_queue, &window_size, &seqnum_expected);
 
 	}
-        if (status == E_TR) 
-	    send_response(pkt, sfd, pkt_get_seqnum(pkt), window_size);
+        
     }
     minq_del(pkt_queue);
 }
