@@ -54,12 +54,15 @@ send_response(pkt_t *pkt, int sfd, uint8_t seqnum, uint8_t window){
     uint8_t type = 0;
     if (pkt_get_tr(pkt) == 0){
         type = PTYPE_ACK;
+	LOG("ACK Seqnum sent : %d", seqnum);
+	LOG("ACK Window : %d \n", window);
     }
     else {
         type = PTYPE_NACK;
+	LOG("NACK Seqnum sent : %d", seqnum);
     }
-    LOG("ACK Seqnum sent : %d", seqnum);
-    LOG("ACK Window : %d \n", window);
+    
+    
     /*XXX Timestamp => last pkt received */
     pkt_create(pkt_resp, type, seqnum, window, 0, pkt_get_timestamp(pkt), NULL);
     size_t len = ACK_PKT_SIZE;
@@ -122,18 +125,22 @@ receive_data (FILE *f, int sfd)
                 pkt_del(pkt);
                 continue;
             }
+            seqnum_to_send = pkt_get_seqnum(pkt);
             increment_seqnum(&seqnum_to_send);
-            send_response(pkt, sfd, seqnum_to_send, --window_size);
+            send_response(pkt, sfd, seqnum_to_send, window_size);
 
             if (minq_push(pkt_queue, pkt)) {
                 ERROR("Failed to add pkt to queue.");
                 return;
             }
+
+	    if (window_size > 1)
+		window_size--;
 	    write_packet(f, pkt_queue, &window_size, &seqnum_expected);
 
 	}
         if (status == E_TR) 
-	    send_response(pkt, sfd, seqnum_to_send, window_size);
+	    send_response(pkt, sfd, pkt_get_seqnum(pkt), window_size);
     }
     minq_del(pkt_queue);
 }
