@@ -74,7 +74,6 @@ receive_data (FILE *f, int sfd)
     pkt_status_code status = 0;
     //size_t nb_packet = 0;
     int keep_receiving = 1;
-    size_t last_seqnum = 0;
     size_t window_size = MAX_WINDOW_SIZE;
     uint8_t seqnum_expected = 0;
     minqueue_t* pkt_queue = NULL;
@@ -91,9 +90,6 @@ receive_data (FILE *f, int sfd)
         char buf[MAX_PKT_SIZE];
         ssize_t read = recv(sfd, buf, MAX_PKT_SIZE, 0);
         if (read == -1) {
-	    /* If the sender wanted to send only 1 packet XXX Handle this another way*/
-	    if (seqnum_expected == 2)
-	        break;
 	    ERROR("Error receiving");
             keep_receiving = 0;
             continue;
@@ -101,18 +97,17 @@ receive_data (FILE *f, int sfd)
         /*Treat data */
         pkt_t* pkt = pkt_new();
         status = pkt_decode(buf, read, pkt);
+	LOG("Expected seqnum to receive : %d", seqnum_expected);
         if (status == PKT_OK) {
-            /** XXX packet TR = 1 */
+	    LOG("Seqnum received : %d", pkt_get_seqnum(pkt));
             /** XXX rework to break look ? */
-            if(pkt_get_length(pkt) == 0 && last_seqnum == pkt_get_seqnum(pkt)) {
-                LOG("Final packet received : 0 : %d", pkt_get_seqnum(pkt)); 
+            if(pkt_get_length(pkt) == 0 && (seqnum_expected - 1 == pkt_get_seqnum(pkt) || seqnum_expected == 1) ) {
+                LOG("Final packet received...End of transaction"); 
                 keep_receiving = 0;
                 pkt_del(pkt);
                 continue;
             }
-            last_seqnum = pkt_get_seqnum(pkt);
-
-            LOG("Last seqnum received : %zu", last_seqnum);
+            //last_seqnum = pkt_get_seqnum(pkt);
             send_response(pkt, sfd, --window_size);
 	    /* If the packet is truncated, ignore it after sending a NACK */
 	    if (pkt_get_tr(pkt) == 1){
