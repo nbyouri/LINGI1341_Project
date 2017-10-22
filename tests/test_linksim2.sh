@@ -7,7 +7,7 @@ rm -f received_file input_file
 dd if=/dev/urandom of=input_file bs=1 count=10000 &> /dev/null
 
 # On lance le simulateur de lien avec 10% de pertes et un délais de 50ms
-./link_sim -p 1341 -P 2456 -c 10 -l 10 -d 50  &> link.log &
+./link_sim -p 1341 -P 2456 -c 10 -l 10 -d 50 -R &> link.log &
 link_pid=$!
 
 # On lance le receiver et capture sa sortie standard
@@ -30,7 +30,7 @@ if ! ./sender ::1 1341 < input_file 2> sender.log ; then
   err=1  # On enregistre l'erreur
 fi
 
-sleep 20 # On attend 20 seconde que le receiver finisse
+sleep 5 # On attend 5 seconde que le receiver finisse
 
 if ! wait $receiver_pid ; then
     echo "Le receiver ne s'est pas arrete"

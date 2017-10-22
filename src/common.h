@@ -44,7 +44,6 @@
 
 #define LOG(msg, ...)       _INFO(stderr, "[LOG]", msg, ##__VA_ARGS__)
 #define ERROR(msg, ...)     _INFO(stderr, "[ERROR]", msg, ##__VA_ARGS__)
-#define INFO(msg, ...)      _INFO(stdout, "[INFO]", msg, ##__VA_ARGS__)
 
 #define MAX_PAYLOAD_SIZE    512
 #define MAX_PKT_SIZE        sizeof(pkt_t) + MAX_PAYLOAD_SIZE - sizeof(char *)
