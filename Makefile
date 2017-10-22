@@ -21,7 +21,7 @@ receiver:
 sender:
 	${CC} ${CFLAGS} ${SEND_OBJS} -DPROGRAM_NAME=\"sender\" -o sender ${LDFLAGS}
 
-tests:
+tests: all
 	@echo -ne "\033[0;32mTesting transfer a file with size equal a packet\033[0m\n"
 	@./tests/packet.sh
 	@echo -ne "\033[0;32mTesting transfer a file with size smaller than window\033[0m\n"
