@@ -14,13 +14,13 @@
  * Slide array elements left
  */
 static int
-array_slide(pkt_t *a[], size_t size)
+array_slide(pkt_t *a[], size_t size, int n)
 {
     if (size > 1) { /* slide elements if there are any */
-        size_t i = 1;
+        size_t i = n;
         for (; i < size; i++)
             /* pointers, baby */
-            *(a + i - 1) = *(a + i);
+            *(a + i - n) = *(a + i);
     }
     return 0;
 }
@@ -72,28 +72,33 @@ get_payload(FILE *f, char *data, size_t *data_offset,
 static void
 slide_window(pkt_t *sliding_window[], FILE *f, char *data,
     size_t *data_offset, size_t *left_to_copy,
-    uint8_t *seqnum, uint8_t window)
+    uint8_t *seqnum, uint8_t window, int n)
 {
-    /* delete the first element */
-    pkt_del(sliding_window[0]);
+    int i = 0;
+    /* delete the first elements */
+    for (; i < n; pkt_del(sliding_window[i++]));
 
     /* move all elements one slot left */
-    array_slide(sliding_window, MAX_PAYLOAD_SIZE);
+    array_slide(sliding_window, MAX_PAYLOAD_SIZE, n);
 
-    /* read a pkt from file */
-    size_t length = 0;
-    char *buf = get_payload(f, data, data_offset, left_to_copy, &length);
+    /* add new pkt from file if needed */
+    if (*left_to_copy > 0) {
+        size_t firstel = MAX_WINDOW_SIZE - n;
+        for (i = firstel; i < MAX_WINDOW_SIZE; i++) {
+            size_t length = 0;
+            char *buf = get_payload(f, data, data_offset, left_to_copy, &length);
 
-    /* fill all fields of new pkt */
-    size_t lastel = MAX_WINDOW_SIZE - 1;
-    sliding_window[lastel] = pkt_new();
-    /* set timestamp XXX */
-    pkt_create(sliding_window[lastel], PTYPE_DATA, *seqnum, window, length, 0, buf);
+            /* fill all fields of new pkt */
+            sliding_window[i] = pkt_new();
+            /* set timestamp XXX */
+            pkt_create(sliding_window[i], PTYPE_DATA, *seqnum, window, length, 0, buf);
 
-    increment_seqnum(seqnum);
+            increment_seqnum(seqnum);
 
-    free(buf);
-    buf = NULL;
+            free(buf);
+            buf = NULL;
+        }
+    }
 }
 
 /*
@@ -142,7 +147,7 @@ send_terminating_packet(int sfd, uint8_t seqnum) {
     memset(buf, 0, len);
     pkt_t *end_pkt = pkt_new();
     pkt_set_type(end_pkt, PTYPE_DATA);
-    pkt_set_seqnum(end_pkt, seqnum);
+    pkt_set_seqnum(end_pkt, --seqnum);
     if (pkt_encode(end_pkt, buf, &len) != PKT_OK) {
         ERROR("Failed to encode end_pkt");
         goto end;
@@ -165,24 +170,24 @@ send_terminating_packet(int sfd, uint8_t seqnum) {
         ERROR("Poll failed %s", strerror(errno));
         goto end;
     } else if (ev == 0) {
-        INFO("Failed to receive ACK for terminating pkt, resending...");
+        LOG("Failed to receive ACK for terminating pkt, resending...");
         ssize_t rec = recv(sfd, ack_buf, 1, MSG_PEEK | MSG_DONTWAIT);
-        if (rec == -1) {
-            INFO("Client must have disconnected, bye! (%s).", strerror(errno));
+        if (rec == -1 && errno == ENOTCONN) {
+            LOG("Client must have disconnected, bye! (%s).", strerror(errno));
         }
         free(buf);
         buf = NULL;
         pkt_del(ack);
         free(ack_buf);
         ack_buf = NULL;
-        if (rec != -1) {
+        if (rec == -1) {
             send_terminating_packet(sfd, seqnum);
         }
     } else {
         /* XXX functinalise */
         memset(ack_buf, '\0', ACK_PKT_SIZE);
         if (recv(sfd, ack_buf, ACK_PKT_SIZE, 0) == -1) {
-            ERROR("Failed to receive an ack");
+            ERROR("Failed to rueceive an ack");
             goto ack;
         }
         if (pkt_decode(ack_buf, ACK_PKT_SIZE, ack) != PKT_OK) {
@@ -211,7 +216,7 @@ ack:
  */
 static int
 seqnum_succ(uint8_t left, uint8_t right) {
-    if (left == 255) {
+    if (left == MAX_SEQNUM - 1) {
         left = 0;
         return left <= right;
     } else {
@@ -219,8 +224,18 @@ seqnum_succ(uint8_t left, uint8_t right) {
     }
 }
 
-
 /*
+ * Return the difference between two seqnum
+ */
+static int
+seqnum_diff(uint8_t left, uint8_t right) {
+    if ((left + (right - left)) > MAX_SEQNUM - 1)
+    // XXX implement
+    else
+        return right - left;
+}
+
+/*/
  * Main send loop
  */
 static void
@@ -237,17 +252,12 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
     size_t  left_to_copy = total_len;           /* inverse offset in file */
     size_t  left_to_send = total_pkt_to_send;   /* amount of packets left to
                                                    send */
-    size_t  i = 0;
-    size_t  cur_slot = 0;                       /* sliding window index */
-    size_t  cur_seqnum = 0;
-    size_t  cur_window_size = MAX_WINDOW_SIZE; /* keep the count of allocated
-                                                  packets in the send buffer
-                                                  so we can cleanup properly.*/
+    uint8_t cur_seqnum = 0;
     int	    keep_sending = 1;
     pkt_t   *sliding_window[MAX_WINDOW_SIZE];   /* send buffer */
 
     /* Build the initial sliding window */
-    cur_window_size = make_window(sliding_window, f, data,
+    make_window(sliding_window, f, data,
         total_pkt_to_send, &data_offset,
         &left_to_copy, &seqnum, window);
 
@@ -266,18 +276,21 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
         if (window == 0) {
             LOG("Window is full, we need some ACKs");
         } else {
-            window--;
             /* XXX functionalise */
             memset(buf, '\0', MAX_PKT_SIZE);
-            if (pkt_encode(sliding_window[cur_slot], buf, &len) != PKT_OK) {
-                ERROR("Failed to encode packet %zu", cur_seqnum);
+            if (pkt_encode(sliding_window[0], buf, &len) != PKT_OK) {
+                ERROR("Failed to encode packet %d", cur_seqnum);
                 keep_sending = 0;
             }
 
+            LOG("Sending pkt %d", cur_seqnum);
             if (keep_sending && send(sfd, buf, len, 0) == -1) {
-                ERROR("Failed to send pkt %zu", cur_seqnum);
+                ERROR("Failed to send pkt %d", cur_seqnum);
                 keep_sending = 0;
             }
+            /* XXX if resend? */
+            increment_seqnum(&cur_seqnum);
+            window--;
         }
 
         /* Poll for incoming data 2s */
@@ -287,11 +300,11 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
             ERROR("Poll failed %s", strerror(errno));
             return;
         } else if (ev == 0) {
-            INFO("Time-out, we have not received an ACK in the last 2seconds");
+            LOG("Time-out, we have not received an ACK in the last 2seconds");
             /* Deal with the loss of the first packet */
             if (window == 0)
                 window++;
-        } else {
+        } else if (ev > 0) {
             /* Listen for an ACK */
             char *response_buf = malloc(ACK_PKT_SIZE);
             pkt_t *ack = pkt_new();
@@ -305,39 +318,34 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
                 ERROR("Failed to decode ack");
                 keep_sending = 0;
             }
-            if (pkt_get_type(ack) == PTYPE_ACK) {
-                LOG("ACK for packet %zu", cur_seqnum);
-                /* XXX check for out of sequence ACKs? */
-                left_to_send--;
-                /* If we have >= MAX_WINDOW_SIZE packets left to send
-                 * and the ack seqnum is a successor then we can slide
+            if (pkt_get_type(ack) == PTYPE_DATA || pkt_get_tr(ack) == 1) {
+                LOG("Wrongfully get a data pkt or a truncated (n)ack.");
+            } else if (pkt_get_type(ack) == PTYPE_ACK) {
+                LOG("ACK seqnum %d expected, we got %d", cur_seqnum, pkt_get_seqnum(ack));
+                /* If the ack seqnum is a successor then we can slide
                  * the window. This takes in account cumulative acks.
                  */
-                if (left_to_send >= MAX_WINDOW_SIZE &&
+                if (left_to_send > 0 &&
                     seqnum_succ(pkt_get_seqnum(sliding_window[0]),
                         pkt_get_seqnum(ack))) {
-                    cur_seqnum = pkt_get_seqnum(ack);
+                    /* Find out how much we ned to slide */
+                    size_t nb_slide = pkt_get_seqnum(ack) -
+                        pkt_get_seqnum(sliding_window[0]);
                     window = pkt_get_window(ack);
-                    LOG("cur_seqnum = %zu, cur_slot = %zu, left_to_send = %zu", cur_seqnum, cur_slot, left_to_send);
-                    /* Slide window XXX enable sliding by more than one slot at once, cumulative acks */
+
+                    LOG("SLIDE of %zu ack seqnum = %d, min seq exp = %d, left_to_send = %zd",
+                        nb_slide, pkt_get_seqnum(ack), pkt_get_seqnum(sliding_window[0]), left_to_send);
                     slide_window(sliding_window, f, data,
-                        &data_offset, &left_to_copy, &seqnum, window);
-                    /* If we don't need to slide the window,
-                     * if the current buffer is smaller than max window size
-                     */
-                } else if (left_to_send > 0) {
-                    LOG("cur_seqnum = %zu, cur_slot = %zu, left_to_send = %zu", cur_seqnum, cur_slot, left_to_send);
-                    cur_seqnum = seqnum = pkt_get_seqnum(ack);
-                    window = pkt_get_window(ack);
-                    cur_slot++;
-                    cur_window_size = cur_slot + 1;
+                        &data_offset, &left_to_copy, &seqnum, window, nb_slide);
+                    left_to_send -= nb_slide; // XXX ?
                 } else {
                     keep_sending = 0;
                 }
-                /* Deal with NACKs, go back to the truncated pkt */
             } else if (pkt_get_type(ack) == PTYPE_NACK) {
-                cur_slot = pkt_get_seqnum(ack) % MAX_WINDOW_SIZE;
+                /* Deal with NACKs, go back to the truncated pkt */
+                LOG("NACK received, please implement what to do");
             }
+            LOG("\n");
             pkt_del(ack);
             free(response_buf);
             response_buf = NULL;
@@ -345,11 +353,6 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 
         free(buf);
         buf = NULL;
-    }
-
-    /* Cleanup */
-    for (i = 0; i < cur_window_size; i++) {
-        pkt_del(sliding_window[i]);
     }
 
     /* Finish transmission */
