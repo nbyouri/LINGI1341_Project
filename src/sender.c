@@ -212,33 +212,6 @@ ack:
 }
 
 /*
- * Returns 1 if left is a successor seqnum of right, 0 otherwise
- */
-static int
-seqnum_succ(uint8_t left, uint8_t right) {
-    if (left == MAX_SEQNUM - 1) {
-        left = 0;
-        return left <= right;
-    } else {
-        return left < right;
-    }
-}
-
-/*
- * Return the difference between two seqnum
- */
-static int
-seqnum_diff(uint8_t left, uint8_t right) {
-    if (((int)(left + right)) >= MAX_SEQNUM) {
-        uint8_t diff = MAX_SEQNUM - left;
-        diff += ++right;
-        return diff;
-    } else {
-        return right - left;
-    }
-}
-
-/*/
  * Main send loop
  */
 static void
@@ -325,6 +298,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
                 LOG("Wrongfully get a data pkt or a truncated (n)ack.");
             } else if (pkt_get_type(ack) == PTYPE_ACK) {
                 LOG("ACK seqnum %d expected, we got %d", cur_seqnum, pkt_get_seqnum(ack));
+                LOG("min_seqnum = %d", pkt_get_seqnum(sliding_window[0]));
                 /* If the ack seqnum is a successor then we can slide
                  * the window. This takes in account cumulative acks.
                  */
@@ -341,7 +315,9 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
                     slide_window(sliding_window, f, data,
                         &data_offset, &left_to_copy, &seqnum, window, nb_slide);
                     left_to_send -= nb_slide; // XXX ?
-                } else {
+                    LOG("updated left_to_send = %zu (nb_slide = %zu)",
+                        left_to_send, nb_slide);
+                } else if (left_to_send == 0) {
                     keep_sending = 0;
                 }
             } else if (pkt_get_type(ack) == PTYPE_NACK) {

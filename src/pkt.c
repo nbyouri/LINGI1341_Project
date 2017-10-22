@@ -352,3 +352,30 @@ increment_seqnum(uint8_t *seqnum)
         *seqnum = 0;
     else (*seqnum)++;
 }
+
+/*
+ * Returns 1 if left is a successor seqnum of right, 0 otherwise
+ */
+int
+seqnum_succ(uint8_t left, uint8_t right) {
+    if (left == MAX_SEQNUM - 1) {
+        left = 0;
+        return left <= right;
+    } else {
+        return left < right;
+    }
+}
+
+/*
+ * Return the difference between two seqnum
+ */
+int
+seqnum_diff(uint8_t left, uint8_t right) {
+    if (right < left) {
+        uint8_t diff = MAX_SEQNUM - left;
+        diff += right;
+        return diff;
+    } else {
+        return right - left;
+    }
+}
