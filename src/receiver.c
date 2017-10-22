@@ -15,16 +15,19 @@
  * return 1 to authorize the writing, else 0
  */
 static int
-fill_window(minqueue_t *pkt_queue, pkt_t* pkt, size_t* window_size, uint8_t* min_missing_pkt) {
+fill_window(minqueue_t *pkt_queue, pkt_t* pkt, size_t* window_size,
+  uint8_t* min_missing_pkt)
+{
     uint8_t actual_seqnum = pkt_get_seqnum(pkt);
-    if (minq_push(pkt_queue, pkt)) {
-        ERROR("Failed to add pkt to queue.");
-        return 0;
-    }
+
     if (actual_seqnum == *min_missing_pkt) {
         increment_seqnum(min_missing_pkt);
         if (*window_size != 0)
            (*window_size)--;
+       if (minq_push(pkt_queue, pkt)) {
+          ERROR("Failed to add pkt to queue.");
+          return 0;
+        }
         return 1;
     }
     /* Check if the packet is not out sequenced */
@@ -32,6 +35,10 @@ fill_window(minqueue_t *pkt_queue, pkt_t* pkt, size_t* window_size, uint8_t* min
          && seqnum_diff(*min_missing_pkt, actual_seqnum) >= 0){
          if(*window_size != 0)
              (*window_size)--;
+             if (minq_push(pkt_queue, pkt)) {
+                 ERROR("Failed to add pkt to queue.");
+                 return 0;
+             }
     }
     return 0;
 
@@ -50,7 +57,10 @@ written_seqnum_diff(ssize_t left, ssize_t right) {
 
 /* Empty the priority queue and append payload to the file*/
 static int
-write_packet(FILE *f, minqueue_t *pkt_queue, size_t *window_size, uint8_t *seqnum_to_send, ssize_t* last_seqnum_written, uint8_t* min_missing_pkt) {
+write_packet(FILE *f, minqueue_t *pkt_queue, size_t *window_size,
+  uint8_t *seqnum_to_send, ssize_t* last_seqnum_written,
+  uint8_t* min_missing_pkt)
+{
     int keep_writing = 1;
     uint8_t last_seqnum = 0;
     while (!minq_empty(pkt_queue) && keep_writing) {
@@ -58,7 +68,8 @@ write_packet(FILE *f, minqueue_t *pkt_queue, size_t *window_size, uint8_t *seqnu
         size_t len = pkt_get_length(pkt);
         uint8_t actual_seqnum = pkt_get_seqnum(pkt);
         if(seqnum_diff(*min_missing_pkt, actual_seqnum) < 0) {
-            LOG("Writing stopped, wait for missing packet, seqnum %d", *min_missing_pkt);
+            LOG("Writing stopped, wait for missing packet, seqnum %d",
+            *min_missing_pkt);
             keep_writing = 0;
         }
         else {
@@ -173,7 +184,8 @@ receive_data (FILE *f, int sfd)
                 status = E_CRC;
             if (status == PKT_OK) {
                 /** XXX rework to break look ? */
-                LOG("[TEMP] last_seqnum_written : %zd  Seqnum received : %d", last_seqnum_written, pkt_get_seqnum(pkt));
+                LOG("[TEMP] last_seqnum_written : %zd  Seqnum received : %d",
+                last_seqnum_written, pkt_get_seqnum(pkt));
                 LOG("Min seqnum needed: %d", min_missing_pkt);
                 if (pkt_get_length(pkt) == 0 && last_seqnum_written == pkt_get_seqnum(pkt)) {
                     LOG("Sending ACK final : %d", pkt_get_seqnum(pkt));
@@ -190,9 +202,11 @@ receive_data (FILE *f, int sfd)
                     pkt_del(pkt);
                     continue;
                 }
-                ready_to_write = fill_window( pkt_queue, pkt, &window_size, &min_missing_pkt);
+                ready_to_write = fill_window( pkt_queue, pkt, &window_size,
+                  &min_missing_pkt);
                 if(ready_to_write)
-                    ready_to_send = write_packet(f, pkt_queue, &window_size, &seqnum_ack, &last_seqnum_written, &min_missing_pkt);
+                    ready_to_send = write_packet(f, pkt_queue, &window_size,
+                      &seqnum_ack, &last_seqnum_written, &min_missing_pkt);
                 if(ready_to_send)
                     send_response(pkt, sfd, seqnum_ack, window_size);
             }
