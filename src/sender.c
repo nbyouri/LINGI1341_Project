@@ -229,10 +229,13 @@ seqnum_succ(uint8_t left, uint8_t right) {
  */
 static int
 seqnum_diff(uint8_t left, uint8_t right) {
-    if ((left + (right - left)) > MAX_SEQNUM - 1)
-    // XXX implement
-    else
+    if (((int)(left + right)) >= MAX_SEQNUM) {
+        uint8_t diff = MAX_SEQNUM - left;
+        diff += ++right;
+        return diff;
+    } else {
         return right - left;
+    }
 }
 
 /*/
@@ -329,8 +332,8 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
                     seqnum_succ(pkt_get_seqnum(sliding_window[0]),
                         pkt_get_seqnum(ack))) {
                     /* Find out how much we ned to slide */
-                    size_t nb_slide = pkt_get_seqnum(ack) -
-                        pkt_get_seqnum(sliding_window[0]);
+                    size_t nb_slide = seqnum_diff(pkt_get_seqnum(sliding_window[0]),
+                            pkt_get_seqnum(ack));
                     window = pkt_get_window(ack);
 
                     LOG("SLIDE of %zu ack seqnum = %d, min seq exp = %d, left_to_send = %zd",
