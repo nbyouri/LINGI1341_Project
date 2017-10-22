@@ -149,6 +149,11 @@ receive_data (FILE *f, int sfd)
 		/*Treat data */
 		pkt_t* pkt = pkt_new();
 		status = pkt_decode(buf, read, pkt);
+		/* Check if the packet is corrupted */
+		if (pkt_gen_crc1(pkt) != pkt_get_crc1(pkt))
+			status = E_CRC;
+		if (pkt_gen_crc2(pkt) != pkt_get_crc2(pkt))
+			status = E_CRC;
 		if (status == PKT_OK) {
 		    /** XXX rework to break look ? */
 		    if (pkt_get_length(pkt) == 0 && last_seqnum_written == pkt_get_seqnum(pkt)) {
@@ -169,6 +174,8 @@ receive_data (FILE *f, int sfd)
 			send_response(pkt, sfd, seqnum_ack, window_size);
 		   
 		   }
+		else
+		    LOG("Corrupted packet");
         }
     }
     minq_del(pkt_queue);
