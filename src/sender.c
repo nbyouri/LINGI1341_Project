@@ -90,6 +90,7 @@ slide_window(pkt_t *sliding_window[], FILE *f, char *data,
 
             /* fill all fields of new pkt */
             sliding_window[i] = pkt_new();
+
             /* set timestamp XXX */
             pkt_create(sliding_window[i], PTYPE_DATA, *seqnum, window, length, 0, buf);
 
@@ -141,8 +142,8 @@ make_window(pkt_t *sliding_window[], FILE *f, char *data,
  */
 static void
 send_terminating_packet(int sfd, uint8_t seqnum) {
-    size_t len = sizeof(pkt_t);
-    char *buf = malloc(len);
+    size_t  len = sizeof(pkt_t);
+    char    *buf = malloc(len);
     memset(buf, 0, len);
     pkt_t *end_pkt = pkt_new();
     pkt_set_type(end_pkt, PTYPE_DATA);
@@ -222,7 +223,6 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
 {
     /* Start by finding out how many packets we need to send in total */
     size_t total_pkt_to_send = nb_pkt_in_buffer(total_len);
-    LOG("We need to send %zu packages", total_pkt_to_send);
 
     /* Protocol variables */
     uint8_t seqnum = 0;
@@ -248,8 +248,8 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
             keep_sending = 0;
             continue;
         }
-        char *buf = malloc(MAX_PKT_SIZE);
-        size_t len = MAX_PKT_SIZE;
+        char    *buf = malloc(MAX_PKT_SIZE);
+        size_t  len = MAX_PKT_SIZE;
 
         /* Send the packet */
         if (window == 0) {
@@ -277,7 +277,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
             ERROR("Poll failed %s", strerror(errno));
             return;
         } else if (ev == 0) {
-            LOG("Time-out, we have not received an ACK in the last 2seconds");
+            LOG("Time-out");
             /* Deal with the loss of the first packet */
             if (window == 0)
                 window++;
@@ -296,8 +296,6 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
                 if (pkt_get_type(ack) == PTYPE_DATA || pkt_get_tr(ack) == 1) {
                     LOG("Wrongfully get a data pkt or a truncated (n)ack.");
                 } else if (pkt_get_type(ack) == PTYPE_ACK) {
-                    LOG("ACK seqnum %d expected, we got %d", cur_seqnum, pkt_get_seqnum(ack));
-                    LOG("min_seqnum = %d", pkt_get_seqnum(sliding_window[0]));
                     /* If the ack seqnum is a successor then we can slide
                      * the window. This takes in account cumulative acks.
                      */
@@ -310,22 +308,17 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
                         window = pkt_get_window(ack);
                         cur_seqnum = pkt_get_seqnum(ack);
 
-                        LOG("SLIDE of %zu ack seqnum = %d, min seq exp = %d, left_to_send = %zd",
-                            nb_slide, pkt_get_seqnum(ack), pkt_get_seqnum(sliding_window[0]), left_to_send);
                         slide_window(sliding_window, f, data,
                             &data_offset, &left_to_copy, &seqnum, window, nb_slide);
                         left_to_send -= nb_slide;
-                        LOG("updated left_to_send = %zu (nb_slide = %zu)",
-                            left_to_send, nb_slide);
                     } else if (left_to_send == 0) {
                         keep_sending = 0;
                     }
                 } else if (pkt_get_type(ack) == PTYPE_NACK) {
                     /* Deal with NACKs, go back to the truncated pkt */
-                    LOG("NACK received, please implement what to do");
+                    LOG("NACK received");
                 }
             }
-            LOG("\n");
             pkt_del(ack);
             free(response_buf);
             response_buf = NULL;
