@@ -28,10 +28,13 @@ tests:
 	@./tests/simple_file.sh
 	@echo -ne "\033[0;32mTesting transfer a file with size higher than window\033[0m\n"
 	@./tests/big_file.sh
+	@echo "\033[0;32mTesting with some delay, loss and cut rate from receiver to sender\033[0m\n"
+	@./tests/test_linksim1.sh
+	@echo "\033[0;32mTesting with some delay, loss and cut rate from sender to receiver\033[0m\n"
+	@./tests/test_linksim2.sh
+	@echo "\033[0;32mTesting with some delay, loss and cut rate bidirectional\033[0m\n"
+	@./tests/test_linksim3.sh
 
-# activate when selective repeat is functional
-#@echo "\033[0;32mTesting with X delay\033[0m"	
-#@./tests/test_linksim.sh
 
 .PHONY: clean tests
 
