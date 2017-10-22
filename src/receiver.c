@@ -28,7 +28,7 @@ fill_window(minqueue_t *pkt_queue, pkt_t* pkt, size_t* window_size, uint8_t* min
         return 1;
     }
     /* Check if the packet is not out sequenced */
-    if((*min_missing_pkt - actual_seqnum) < MAX_WINDOW_SIZE)
+    if (seqnum_diff(*min_missing_pkt, actual_seqnum) < MAX_WINDOW_SIZE)
         (*window_size)--;
 
     return 0;
@@ -191,8 +191,8 @@ receive_data (FILE *f, int sfd)
                 if(ready_to_send)
                     send_response(pkt, sfd, seqnum_ack, window_size);
             }
-            if (keep_receiving && pkt != NULL)
-                pkt_del(pkt);
+            //if (keep_receiving && pkt != NULL)
+            //    pkt_del(pkt);
         }
     }
     minq_del(pkt_queue);
