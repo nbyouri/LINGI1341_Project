@@ -29,7 +29,7 @@ if ! ./sender ::1 1341 < input_file 2> sender.log ; then
   err=1  # On enregistre l'erreur
 fi
 
-sleep 20 # On attend 20 seconde que le receiver finisse
+sleep 5 # On attend 5 seconde que le receiver finisse
 
 if ! wait $receiver_pid ; then
     echo "Le receiver ne s'est pas arrete"
