@@ -1,0 +1,931 @@
+commit 690e3b795cd6b003a203c3fd8ffb06b25fa5dc57
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Sun Oct 22 22:02:54 2017 +0200
+
+    [Report] Add initial report
+
+ rapport.pdf | Bin 0 -> 813145 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+
+commit 776175ecc04e776467f9bac550c7df21f3304022
+Author: Nicolas Sias <nsias@geonosis.info.ucl.ac.be>
+Date:   Mon Oct 23 01:09:27 2017 +0200
+
+    [receiver.c] Fix memory leak
+
+ src/receiver.c | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)
+
+commit c86a2900b50e65e5dd3e8858f771f96a76471051
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Mon Oct 23 01:09:31 2017 +0200
+
+    [sender.c] Remove LOGs.
+
+ src/sender.c | 21 +++++++--------------
+ 1 file changed, 7 insertions(+), 14 deletions(-)
+
+commit 0d28e6524f65e2e5bd3a20f03907cb92eed4c53b
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Mon Oct 23 00:05:50 2017 +0200
+
+    [tests] Don't sleep for so long
+
+ tests/test_linksim.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 527b9726df5b3db2600ff084f76264c5a513e56c
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Mon Oct 23 00:03:51 2017 +0200
+
+    [sender/receiver] Change RTO to 200 ms
+
+ src/common.h   | 1 +
+ src/receiver.c | 2 +-
+ src/sender.c   | 4 ++--
+ 3 files changed, 4 insertions(+), 3 deletions(-)
+
+commit 7b70998d8bf7cac1fe6abc08d83c6f2a22bd4d4c
+Author: Nicolas Sias <nsias@geonosis.info.ucl.ac.be>
+Date:   Sun Oct 22 23:43:29 2017 +0200
+
+    [receiver.c] Ignore out-sequenced packet
+
+ src/receiver.c | 34 ++++++++++++++++++++++++----------
+ 1 file changed, 24 insertions(+), 10 deletions(-)
+
+commit 83572038d796d55f4e8cf2e62219764f96d5ae04
+Merge: ede86f6 198602d
+Author: Nicolas Sias <nsias@geonosis.info.ucl.ac.be>
+Date:   Sun Oct 22 23:06:37 2017 +0200
+
+    Merge branch 'master' of https://github.com/nbyouri/LINGI1341_Project
+
+commit ede86f633d777b78dd9a1d1382a7ee455ad1b83a
+Author: Nicolas Sias <nsias@geonosis.info.ucl.ac.be>
+Date:   Sun Oct 22 23:05:04 2017 +0200
+
+    [receiver.c] Fix NACK handling
+
+ src/receiver.c | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)
+
+commit 198602db60371dafee9614f75534a1b3f2703360
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Sun Oct 22 21:45:50 2017 +0200
+
+    [tests] Update test cases to include error rate and jitter.
+
+ Makefile               | 8 ++++----
+ tests/test_linksim.sh  | 3 +--
+ tests/test_linksim1.sh | 3 +--
+ tests/test_linksim2.sh | 3 +--
+ 4 files changed, 7 insertions(+), 10 deletions(-)
+
+commit 6205b3fff16b99ae598ff081dc07cd8cc7639de8
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Sun Oct 22 19:57:38 2017 +0200
+
+    [receiver.c] FIx seqnum diff and comment memory leak fix
+
+ src/receiver.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+commit 254f2c4a0f63c215a46a36552dcd8fedcab10b08
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Sun Oct 22 19:26:59 2017 +0200
+
+    [receiver.c] Fix crash from double free
+
+ src/receiver.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 19283661382c0944d59023c8c284b7464aae2e41
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Sun Oct 22 19:24:02 2017 +0200
+
+    Fix seqnum mechanics and some memory leaks.
+
+ src/pkt.c      |  15 +-
+ src/receiver.c | 428 +++++++++++++++++++++++++++++----------------------------
+ src/sender.c   |  81 +++++------
+ 3 files changed, 267 insertions(+), 257 deletions(-)
+
+commit 6b35eaaf830657f5e6318011d1f07922287ab587
+Author: Nicolas Sias <nsias@kenobi.info.ucl.ac.be>
+Date:   Sun Oct 22 16:22:56 2017 +0200
+
+    [receiver.c] Fix seqnum comparison ( + add some LOGs)
+
+ src/receiver.c | 403 +++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 203 insertions(+), 200 deletions(-)
+
+commit 6ed3c72b2bdbafe10457b75fe38c6d35c7680845
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Sun Oct 22 16:17:13 2017 +0200
+
+    Move seqnum utilities to pkt.c
+
+ src/common.h |  2 ++
+ src/pkt.c    | 27 +++++++++++++++++++++++++++
+ src/sender.c | 32 ++++----------------------------
+ 3 files changed, 33 insertions(+), 28 deletions(-)
+
+commit 285056e585976a96e7e09c2d6af769e352791e5e
+Merge: 59df85a 8bb523a
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Sun Oct 22 14:13:24 2017 +0200
+
+    Merge branch 'master' of https://github.com/nbyouri/LINGI1341_Project
+
+commit 59df85abc4c73f910f14447b450e24ebc2996f32
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Sun Oct 22 14:12:39 2017 +0200
+
+    [receiver.c] Handle corrupted packet
+
+ src/receiver.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+commit 8bb523a77eec099a3b4b81edb37e67b7c77f18e0
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Sun Oct 22 14:11:56 2017 +0200
+
+    [sender.c] Fix wrapping of seqnum
+
+ src/sender.c | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+commit cfd10eb20679c6a8530834546269c25adcacb523
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Sun Oct 22 13:15:08 2017 +0200
+
+    [sender.c] Rework and simplify sliding mechanics
+
+ src/sender.c | 135 ++++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 69 insertions(+), 66 deletions(-)
+
+commit 4d883d4e9f98aed033387e01a2227b9af52c079d
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Sun Oct 22 13:14:49 2017 +0200
+
+    [common.h] Remove useless macro
+
+ src/common.h | 1 -
+ 1 file changed, 1 deletion(-)
+
+commit 10d0067e7aed7f9ace22f0e7f1df57fa749639af
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Sun Oct 22 13:14:31 2017 +0200
+
+    [Makefile] Add test cases
+
+ Makefile | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+commit 434c381197b90ada42976dd2184928b0ca73c94f
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Sun Oct 22 12:53:35 2017 +0200
+
+    [tests] Add some linksim tests.
+
+ tests/test_linksim.sh  | 32 +++++++++++++--------------
+ tests/test_linksim1.sh | 59 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ tests/test_linksim2.sh | 59 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 134 insertions(+), 16 deletions(-)
+
+commit 266f42ce15563bf76d193c5b1c1af07c8827b939
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Sat Oct 21 23:56:41 2017 +0200
+
+    [receiver.c] Rework main mechanics allowing proper selective repeat strategy
+
+ src/receiver.c | 165 ++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 106 insertions(+), 59 deletions(-)
+
+commit 1a830f4e876e644a03da984619a7990576c743d4
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Sat Oct 21 15:37:56 2017 +0200
+
+    [receiver.c] Fix send_response
+
+ src/receiver.c | 61 ++++++++++++++++++++--------------------------------------
+ 1 file changed, 21 insertions(+), 40 deletions(-)
+
+commit 85e0958a134ecbeaf4186028429568b2e383144a
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Sat Oct 21 14:58:08 2017 +0200
+
+    [receiver.c] Rework send_response method + send ACK for final transaction
+
+ src/receiver.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+commit 0ae870c00e6bc4ff26bab4583ccfb466644cb4e5
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Sat Oct 21 14:09:23 2017 +0200
+
+    [receiver.c] Fix window_size and seqnum_to_send
+
+ src/receiver.c | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)
+
+commit 4461da8966dfb37873952c83806b3473b1e96079
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Sat Oct 21 13:43:57 2017 +0200
+
+    [receiver.c] Adapt send_response for final ACK
+
+ src/receiver.c | 33 +++++++++------------------------
+ 1 file changed, 9 insertions(+), 24 deletions(-)
+
+commit 44c0664155fcd7b47ec5758f132cff434570e27d
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Sat Oct 21 13:23:12 2017 +0200
+
+    [receiver.c] Send ACK for final transaction + implement pkt_check
+
+ src/receiver.c | 46 ++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 38 insertions(+), 8 deletions(-)
+
+commit 0afbc0bb38cc4bac5f063da82a2affb974d85dfe
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Sat Oct 21 13:15:01 2017 +0200
+
+    [sender.c] Fix terminating packet mechanics
+
+ src/common.h |   3 +-
+ src/sender.c | 119 ++++++++++++++++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 96 insertions(+), 26 deletions(-)
+
+commit b6e44e08cb4d199ca36f7871fd72089bc87f90e1
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Sat Oct 21 11:34:39 2017 +0200
+
+    [receiver.c] Main loop from receive_data reworked
+
+ src/receiver.c | 15 +++++----------
+ 1 file changed, 5 insertions(+), 10 deletions(-)
+
+commit 1f6ea0464bca525431b1ed8525251e4fbc8e4626
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Sat Oct 21 00:20:58 2017 +0200
+
+    [tests] Fix test cases
+
+ Makefile              | 19 +++++++++----------
+ tests/bad_packet.c    | 50 --------------------------------------------------
+ tests/big_file.sh     | 36 ++++++++++++++++++++++--------------
+ tests/packet.sh       | 32 ++++++++++++++++++++------------
+ tests/simple_file.sh  | 30 +++++++++++++++++++-----------
+ tests/test_linksim.sh |  2 +-
+ 6 files changed, 71 insertions(+), 98 deletions(-)
+
+commit 64c1d932cc28cd30e764e8cf48ac2956d372d09e
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Fri Oct 20 10:10:08 2017 +0200
+
+    [receiver.c] Ignore truncated packet after sending a NACK
+
+ src/receiver.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+commit 8dbeb59fed728224291cbb21625133a818bcea29
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Fri Oct 20 09:59:17 2017 +0200
+
+    [receiver.c] Avoid error if the sender sends only 1 packet
+
+ src/receiver.c | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)
+
+commit c5032ad784f1e499d32ee0b7fc040a811d34f146
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Fri Oct 20 09:17:03 2017 +0200
+
+    [receiver.c] Implement sliding window
+
+ src/receiver.c | 112 +++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 61 insertions(+), 51 deletions(-)
+
+commit f3b4e6a74b325dc0c72cdc394129a0f9f2b0f1ff
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Fri Oct 20 22:43:48 2017 +0200
+
+    [sender.c] Simplify
+
+ src/sender.c | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)
+
+commit 467bddd9a0456c83ca16af71c3309d649525b639
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Fri Oct 20 22:43:35 2017 +0200
+
+    [pkt.c] Add increment_seqnum
+
+ src/pkt.c | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
+
+commit d5160a7cb97275e3fbd72a1a29b2154eb1956218
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Fri Oct 20 22:43:21 2017 +0200
+
+    [common.h] Add increment_seqnum
+
+ src/common.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+commit 91cf92e1edef6810e66be99b7dcd63071bb1d478
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Fri Oct 20 22:20:35 2017 +0200
+
+    [sender.c] Simplify
+
+ src/sender.c | 151 ++++++++++++++++++++++-------------------------------------
+ 1 file changed, 57 insertions(+), 94 deletions(-)
+
+commit ff6e2095812f6523085df26c20bf6c7b2f64a053
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Fri Oct 20 22:20:20 2017 +0200
+
+    [pkt.c] Indent
+
+ src/pkt.c | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)
+
+commit 4781f653399346ac2b5c5095250c90927406ad31
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Fri Oct 20 22:19:46 2017 +0200
+
+    [common.h] Update API.
+
+ src/common.h | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+commit a8bfc0c06fa8f040f0456a9543673291fc745e37
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Fri Oct 20 20:59:32 2017 +0200
+
+    [sender.c] Implement the sliding window.
+
+ src/sender.c | 271 ++++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 173 insertions(+), 98 deletions(-)
+
+commit 4beb86c41931a00132624bb00563cffc8f1bd71b
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Fri Oct 20 20:59:08 2017 +0200
+
+    [receiver.c] Indent, fix memory leaks. Hi nico!
+
+ src/receiver.c | 218 ++++++++++++++++++++++++++-------------------------------
+ 1 file changed, 99 insertions(+), 119 deletions(-)
+
+commit b831eb3120952d980bbcdeabb8bea44d7a8e1d76
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Fri Oct 20 20:58:43 2017 +0200
+
+    [common.h] Bump MAX_WINDOW_SIZE
+
+ src/common.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 500d51a3dfb0467fc38d40112cc0d40173de537f
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Fri Oct 20 20:58:21 2017 +0200
+
+    [pkt.c] Comment pkt_create
+
+ src/pkt.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+commit 3a1d3b3095d6bbc55db9b9b8cfa23f5242714639
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Fri Oct 20 07:15:14 2017 +0200
+
+    [min_queue] Avoid push if the priority of new element is equal to another element in queue
+
+ src/common.h    |  1 +
+ src/min_queue.c | 16 +++++++++++++++-
+ src/min_queue.h |  2 +-
+ src/receiver.c  | 32 ++++++++++++++++++++++++--------
+ src/utils.c     | 12 ++++++++++++
+ 5 files changed, 53 insertions(+), 10 deletions(-)
+
+commit 2d49ebd932d745a300afaf38227f9faebce6333b
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Fri Oct 20 16:48:40 2017 +0200
+
+    [receiver.c] Fix memory leak when writing to a file.
+
+ src/receiver.c | 19 +------------------
+ 1 file changed, 1 insertion(+), 18 deletions(-)
+
+commit 346ad818876c9821c3ed4dfe915fe881c6ef93a3
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Fri Oct 20 16:48:28 2017 +0200
+
+    [utils.c] Fix reading big files from stdin.
+
+ src/utils.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+commit 2c029c0db7f78fea135cc5b8e2562042fea88388
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Fri Oct 20 16:47:24 2017 +0200
+
+    [tests/*] Fix test cases
+
+ tests/bad_packet.c    | 11 +++++++++--
+ tests/big_file.sh     |  2 +-
+ tests/packet.sh       |  2 +-
+ tests/simple_file.sh  |  4 ++--
+ tests/test_linksim.sh |  2 +-
+ 5 files changed, 14 insertions(+), 7 deletions(-)
+
+commit 52e6e5d48c6519751310b49bd6d7031d88a0c511
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Fri Oct 20 12:47:10 2017 +0200
+
+    [receiver.c] Fix memory leak in send_response.
+
+ src/receiver.c | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+commit bd7f3eb5330ca7d1121e1dcc93d00cd72779c3d4
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Fri Oct 20 12:40:22 2017 +0200
+
+    [sender.c] Fix sending of small files and memory leak
+
+ src/sender.c | 27 +++++++++++++++++----------
+ 1 file changed, 17 insertions(+), 10 deletions(-)
+
+commit 81efd06b06a81f9e2284d0a17fef5bda9ea50577
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Fri Oct 20 02:32:56 2017 +0200
+
+    Fix big file send
+
+ src/receiver.c | 27 ++++++++++++++++++++-------
+ 1 file changed, 20 insertions(+), 7 deletions(-)
+
+commit 3e11a178ac0443b3fe42547a726a808661c75f95
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Fri Oct 20 11:43:11 2017 +0200
+
+    Fix sender free.
+
+ src/sender.c | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)
+
+commit c0b6488f2dd94ad043ac1bd61064659dc95810a3
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Fri Oct 20 00:44:55 2017 +0200
+
+    Fix seqnum wrap-around.
+
+ src/sender.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit 1f92c39c3a544d1dfdcdafa94eaf19cea0335cc2
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Fri Oct 20 00:33:47 2017 +0200
+
+    Fix sending of medium file.
+
+ src/sender.c | 17 +++++++----------
+ 1 file changed, 7 insertions(+), 10 deletions(-)
+
+commit a60a3fec743d168ccbfe1e40b88085241732ef3e
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Fri Oct 20 00:15:33 2017 +0200
+
+    Fix seqnum ack/nack
+
+ src/receiver.c | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
+
+commit 7d5c76936cc3fc96f7a0f41aabf2894d564159ff
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Thu Oct 19 23:43:39 2017 +0200
+
+    Make new window for bigger files.
+
+ src/sender.c | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)
+
+commit 5800ccb035ddb764aba806b258b3986e1d69cfc9
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Thu Oct 19 23:19:38 2017 +0200
+
+    Fix sending.
+
+ src/sender.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit 3f84375ba779e05f282de3e5f0337598433f417a
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Thu Oct 19 23:17:28 2017 +0200
+
+    Fix segfault.
+
+ src/sender.c | 133 +++++++++++++++++++++--------------------------------------
+ 1 file changed, 46 insertions(+), 87 deletions(-)
+
+commit 4894e4f2fe4ba12885e8ea7b02e4c8a5308f1a68
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Thu Oct 19 22:30:41 2017 +0200
+
+    Simplify.
+
+ src/sender.c | 51 ++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 30 insertions(+), 21 deletions(-)
+
+commit 09e9130b507d19d02f19983b638e19d95d135c3b
+Merge: 83bf630 dd95140
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Thu Oct 19 18:45:46 2017 +0200
+
+    Merge branch 'master' of https://github.com/nbyouri/LINGI1341_Project
+
+commit 83bf630a19273f2df3c4ab69ddcf71410be73fe2
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Thu Oct 19 18:45:26 2017 +0200
+
+    Start implementing sliding window.
+
+ src/sender.c | 84 ++++++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 45 insertions(+), 39 deletions(-)
+
+commit dd951406f22691fb4d1d00e48c9f361cba040eb6
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Thu Oct 19 14:45:29 2017 +0200
+
+    Add timestamp for ack/nack packet + little fix
+
+ src/common.h   |  2 +-
+ src/pkt.c      |  6 ++----
+ src/receiver.c | 18 +++++++++---------
+ 3 files changed, 12 insertions(+), 14 deletions(-)
+
+commit b45df08cd6a17b60b2e621b1d3ca2461e208644b
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Thu Oct 19 14:27:31 2017 +0200
+
+    Prepare window size implementation ( ACK send how much place is free )
+
+ src/receiver.c | 37 +++++++------------------------------
+ 1 file changed, 7 insertions(+), 30 deletions(-)
+
+commit a2ecafaa0f7395bb65a45e039a75f18038916676
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Thu Oct 19 17:47:19 2017 +0200
+
+    Initial Send/ACK mechanics.
+
+ src/receiver.c | 11 +++++------
+ src/sender.c   | 46 ++++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 41 insertions(+), 16 deletions(-)
+
+commit c9211163ee38f76d05a21dcfbd840f36549ca0a3
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Thu Oct 19 17:15:47 2017 +0200
+
+    Functionalise send_data.
+
+ src/sender.c | 199 +++++++++++++++++++++++++----------------------------------
+ 1 file changed, 83 insertions(+), 116 deletions(-)
+
+commit b7b4bcabdfa343b754eaa35949eaac9d24fb49cf
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Thu Oct 19 13:02:35 2017 +0200
+
+    Fix receiver memory leak.
+
+ src/receiver.c | 54 +++++++++++++++++++-----------------------------------
+ 1 file changed, 19 insertions(+), 35 deletions(-)
+
+commit 50a70163f4c6bc8d60309bc6394d3847067ea21a
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Thu Oct 19 12:32:05 2017 +0200
+
+    Implement basic file send.
+
+ src/receiver.c | 37 ++++++++++++++++++++++++++-----------
+ src/sender.c   | 22 +++++++++++++++++++++-
+ 2 files changed, 47 insertions(+), 12 deletions(-)
+
+commit e94812f4d3d47e275273080eac49c4f45a28f15b
+Merge: 0bd2e12 b9bd94b
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Thu Oct 19 12:10:37 2017 +0200
+
+    Merge branch 'master' of https://github.com/nbyouri/LINGI1341_Project
+
+commit 0bd2e12c24dfc047975a9edc5837c5b17211a26d
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Thu Oct 19 12:04:44 2017 +0200
+
+    Implement basic network transactions (send and recv)
+
+ src/receiver.c | 25 ++++++++++++++++++++-----
+ 1 file changed, 20 insertions(+), 5 deletions(-)
+
+commit b9bd94b193160a77da0cbe98e118e330ad54b990
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Thu Oct 19 11:52:37 2017 +0200
+
+    Start sending packets.
+
+ src/sender.c | 62 ++++++++++++++++++++++++++++--------------------------------
+ src/utils.c  |  2 +-
+ 2 files changed, 30 insertions(+), 34 deletions(-)
+
+commit 2aab577866072f94641edab987d53723d41ee351
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Thu Oct 19 11:16:40 2017 +0200
+
+    Fix file handling, only works properly on Linux.
+
+ Makefile     |  1 +
+ src/sender.c | 19 ++++++++++++-------
+ 2 files changed, 13 insertions(+), 7 deletions(-)
+
+commit 9c9341a4a6ed7567f2cd5fe5c4551078225c634c
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Thu Oct 19 17:21:42 2017 +0200
+
+    Fix receive data main loop with write file functionnal
+
+ src/common.h   |  2 +-
+ src/pkt.c      |  6 ++----
+ src/receiver.c | 57 ++++++++++++++++++++++++++++++++++++---------------------
+ 3 files changed, 39 insertions(+), 26 deletions(-)
+
+commit ccd4e8b0802d78fca99c3f97f2286967f015ee0c
+Merge: 66f4a1f 77dff0f
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Wed Oct 18 18:30:54 2017 +0200
+
+    Merge branch 'master' of https://github.com/nbyouri/LINGI1341_Project
+
+commit 77dff0fc97d1ecd4ec4279a371bcd0ecae18f2f7
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Thu Oct 19 13:38:01 2017 +0200
+
+    Add timestamp arg in pkt_create
+
+ src/common.h   |  2 +-
+ src/receiver.c | 14 +++++++-------
+ 2 files changed, 8 insertions(+), 8 deletions(-)
+
+commit ea29ec9763304309f14820fc505053a47f2db0c4
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Thu Oct 19 13:22:10 2017 +0200
+
+    Just a little fix to create ack/nack packet
+
+ src/receiver.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 740deb732b2d87724f705c02f05a18a1e13840c3
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Thu Oct 19 13:19:32 2017 +0200
+
+    Prepare sending ack/nack method
+
+ src/common.h   |  2 +-
+ src/pkt.c      |  5 +++--
+ src/receiver.c | 40 +++++++++++++++++++++++++++++++++-------
+ 3 files changed, 37 insertions(+), 10 deletions(-)
+
+commit 8ccbc12eeb861f99e1380988bd52faace0a18fe9
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Thu Oct 19 12:45:01 2017 +0200
+
+    Implement pkt_create method (useful for the future)
+
+ src/common.h   |  1 +
+ src/pkt.c      | 19 +++++++++++++++++++
+ src/receiver.c | 14 +++++++-------
+ 3 files changed, 27 insertions(+), 7 deletions(-)
+
+commit cc271ba329e57ce230dc4daf6fbba5fb3e984bf0
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Thu Oct 19 12:20:04 2017 +0200
+
+    Fix the break from the loop
+
+ src/receiver.c | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)
+
+commit 66f4a1f6e833df360fb1454fbd0de13cf58f7cb8
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Wed Oct 18 18:08:16 2017 +0200
+
+    Current not working send.
+
+ src/common.h |   1 +
+ src/pkt.c    |   9 +++++
+ src/sender.c | 107 +++++++++++++++++++++++++++++++++++------------------------
+ src/utils.c  |   4 +--
+ 4 files changed, 76 insertions(+), 45 deletions(-)
+
+commit db7798bdf3203c06aab65a68d80ad1d027c59b96
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Tue Oct 17 21:35:22 2017 +0200
+
+    Create main loop for receiving data (with minq from linksim)
+
+ src/common.h   |  1 +
+ src/receiver.c | 60 ++++++++++++++++++++++++++++++++++++++++++++++++++--------
+ src/utils.c    | 12 ++++++++++++
+ 3 files changed, 65 insertions(+), 8 deletions(-)
+
+commit 836ba24866fa6590d963d7f6f3413076d76d8e87
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Tue Oct 17 18:48:54 2017 +0200
+
+    Start sending mechanics.
+
+ src/receiver.c | 16 +++++++++++++++-
+ src/sender.c   | 54 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 68 insertions(+), 2 deletions(-)
+
+commit 15cd3997960fcb81cbd8d847ae44a87f526e93fd
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Tue Oct 17 18:03:45 2017 +0200
+
+    Implement timestamp related functions and try the queue.
+
+ Makefile     |  4 ++--
+ src/common.h |  8 ++++++-
+ src/sender.c | 24 ++++++++++++++++++-
+ src/utils.c  | 75 ++++++++++++++++++++++++++++++++++++++++++++++++------------
+ 4 files changed, 93 insertions(+), 18 deletions(-)
+
+commit fe6ef99a8b0206cedad702315a180de0d3ee0d2d
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Tue Oct 17 16:54:44 2017 +0200
+
+    Delete old queue implementation
+
+ src/queue.c | 73 -------------------------------------------------------------
+ 1 file changed, 73 deletions(-)
+
+commit 646ada83feaa4b412596cddc4147061ac76b5be6
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Tue Oct 17 16:53:53 2017 +0200
+
+    Minqueue from linksim in makefile
+
+ Makefile | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit 2d4c70c2678b4aee1f5ff5029807f0589ed85f1c
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Mon Oct 16 21:26:55 2017 +0200
+
+    Implement timer
+
+ src/utils.c | 52 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 52 insertions(+)
+
+commit 8b5d44d7b6a2ef83874eacfe1ebdb224079c9fab
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Mon Oct 16 21:26:02 2017 +0200
+
+    Add queue implementation from linksim
+
+ src/min_queue.c | 171 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/min_queue.h |  67 ++++++++++++++++++++++
+ 2 files changed, 238 insertions(+)
+
+commit bf0d6cc68aaca16ebefec5774c8dc8efb661912b
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Mon Oct 16 21:24:55 2017 +0200
+
+    Timer implementation (timediff, timecmp, updatetime)
+
+ src/common.h | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+commit c8756b321a7dce7d97dcc0a479de17422b9169b6
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Tue Oct 17 16:22:03 2017 +0200
+
+    Initialise filename before copying to it.
+
+ src/sender.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+commit 9b2b30de7f259e188761a3867304938ea450ccb5
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Tue Oct 17 15:16:00 2017 +0200
+
+    Add PriorityQueue implementation.
+
+ src/queue.c | 73 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 73 insertions(+)
+
+commit 17eba7e0176f9b0b89892ca883288443a89a5527
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Mon Oct 16 14:49:22 2017 +0200
+
+    Zero the buffer and rework some C
+
+ src/sender.c | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
+
+commit f54c866a7eba69c79b30bb3da180e9d382eff7c1
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Mon Oct 16 12:59:58 2017 +0200
+
+    remove superfluous realoc
+
+ src/utils.c | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)
+
+commit 327c7058e5ba69914e4579ae8ea37a4ad03acc12
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Mon Oct 16 12:49:15 2017 +0200
+
+    hi nico
+
+ src/sender.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 2392382a4202d7151e235f1e919ab017798e1f97
+Author: Nicolas Sias <nicolas.sias.01@gmail.com>
+Date:   Sun Oct 15 22:45:21 2017 +0200
+
+    File input for sender fixed for Linux
+
+ src/sender.c | 2 +-
+ src/utils.c  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit a7f94e5da47845808a01388f82331eb3193d539d
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Sat Oct 14 17:38:55 2017 +0200
+
+    Prepare for selective repeat mechanics.
+    Treat stdin the same as another file.
+
+ src/sender.c | 91 +++++++++++++++++++-----------------------------------------
+ 1 file changed, 28 insertions(+), 63 deletions(-)
+
+commit 907df33da83246ea103b6950452759430c51d389
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Sat Oct 14 15:33:38 2017 +0200
+
+    Fix two memory leaks.
+
+ src/pkt.c    |  6 +++---
+ src/sender.c | 12 ++++++++----
+ src/utils.c  |  2 +-
+ 3 files changed, 12 insertions(+), 8 deletions(-)
+
+commit 68054ea204d6fb4ee442861acc44c53ade475441
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Sat Oct 14 15:15:38 2017 +0200
+
+    Implement proper stdin reading.
+
+ Makefile     |  2 +-
+ src/common.h |  1 +
+ src/sender.c | 12 +++++++++---
+ src/utils.c  | 26 ++++++++++++++++++++++++++
+ 4 files changed, 37 insertions(+), 4 deletions(-)
+
+commit 980957d1d24e72b74d7ef824f0261fedb892c006
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Sat Oct 14 12:22:51 2017 +0200
+
+    Fix getters/setters and fix the help message
+
+ Makefile     |  4 ++--
+ src/common.h |  3 ---
+ src/pkt.c    | 10 +++++++---
+ src/utils.c  |  2 +-
+ 4 files changed, 10 insertions(+), 9 deletions(-)
+
+commit 696850eebf6dac554c63147788e142626518a45c
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Sat Oct 14 11:06:40 2017 +0200
+
+    Initial commit for the 2017-2018 LINGI 1341 project with Nicolas Sias
+
+ Makefile              |  39 +++++++
+ src/common.h          | 154 +++++++++++++++++++++++++
+ src/net.c             | 163 ++++++++++++++++++++++++++
+ src/pkt.c             | 312 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/receiver.c        |  96 ++++++++++++++++
+ src/sender.c          | 255 +++++++++++++++++++++++++++++++++++++++++
+ src/utils.c           | 116 +++++++++++++++++++
+ tests/bad_packet.c    |  43 +++++++
+ tests/big_file.sh     |  51 +++++++++
+ tests/packet.sh       |  51 +++++++++
+ tests/simple_file.sh  |  51 +++++++++
+ tests/test_linksim.sh |  59 ++++++++++
+ 12 files changed, 1390 insertions(+)
