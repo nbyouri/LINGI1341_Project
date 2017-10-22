@@ -270,8 +270,8 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
             window--;
         }
 
-        /* Poll for incoming data 2s */
-        int ev = poll(fd, 1, 2000);
+        /* Poll for incoming data */
+        int ev = poll(fd, 1, RTO);
 
         if (ev == -1) {
             ERROR("Poll failed %s", strerror(errno));

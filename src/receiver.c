@@ -157,7 +157,7 @@ receive_data (FILE *f, int sfd)
     while (keep_receiving) {
         /* Packets reception in priority queue */
         if (!keep_receiving) break;
-        int ev = poll(fds, 1, 2000);
+        int ev = poll(fds, 1, RTO);
         if (ev == -1) {
             ERROR("Poll failed");
             break;

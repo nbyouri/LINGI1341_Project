@@ -54,6 +54,7 @@
 #define IP_LENGTH           INET6_ADDRSTRLEN
 #define IP_ANY              "::"
 #define MAX_TIMEOUT	    2
+#define RTO                 200 /* ms */
 /*
  *
  * Data Types
