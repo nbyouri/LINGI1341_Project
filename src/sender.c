@@ -143,11 +143,10 @@ static void
 send_terminating_packet(int sfd, uint8_t seqnum) {
     size_t len = sizeof(pkt_t);
     char *buf = malloc(len);
-    /* XXX functionalise */
     memset(buf, 0, len);
     pkt_t *end_pkt = pkt_new();
     pkt_set_type(end_pkt, PTYPE_DATA);
-    pkt_set_seqnum(end_pkt, --seqnum);
+    pkt_set_seqnum(end_pkt, seqnum);
     if (pkt_encode(end_pkt, buf, &len) != PKT_OK) {
         ERROR("Failed to encode end_pkt");
         goto end;
@@ -184,18 +183,22 @@ send_terminating_packet(int sfd, uint8_t seqnum) {
             send_terminating_packet(sfd, seqnum);
         }
     } else {
-        /* XXX functinalise */
         memset(ack_buf, '\0', ACK_PKT_SIZE);
         if (recv(sfd, ack_buf, ACK_PKT_SIZE, 0) == -1) {
-            ERROR("Failed to rueceive an ack");
+            ERROR("Failed to receive an ack");
             goto ack;
         }
         if (pkt_decode(ack_buf, ACK_PKT_SIZE, ack) != PKT_OK) {
-            ERROR("Failed to decode ack");
+            LOG("Corrupted terminating ack.");
             goto ack;
         }
         if (pkt_get_type(ack) == PTYPE_ACK) {
-            LOG("ACK for terminating packet received.");
+            if (pkt_get_seqnum(ack) != seqnum) {
+                LOG("Received stale ACK (%d), resending...", pkt_get_seqnum(ack));
+                send_terminating_packet(sfd, seqnum);
+            } else {
+                LOG("ACK for terminating packet received.(%d)", pkt_get_seqnum(ack));
+            }
             goto ack;
         }
     }
@@ -252,7 +255,6 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
         if (window == 0) {
             LOG("Window is full, we need some ACKs");
         } else {
-            /* XXX functionalise */
             memset(buf, '\0', MAX_PKT_SIZE);
             if (pkt_encode(sliding_window[0], buf, &len) != PKT_OK) {
                 ERROR("Failed to encode packet %d", cur_seqnum);
@@ -264,7 +266,6 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
                 ERROR("Failed to send pkt %d", cur_seqnum);
                 keep_sending = 0;
             }
-            /* XXX if resend? */
             increment_seqnum(&cur_seqnum);
             window--;
         }
@@ -284,45 +285,45 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
             /* Listen for an ACK */
             char *response_buf = malloc(ACK_PKT_SIZE);
             pkt_t *ack = pkt_new();
-            /* XXX functinalise */
             memset(response_buf, '\0', ACK_PKT_SIZE);
             if (recv(sfd, response_buf, ACK_PKT_SIZE, 0) == -1) {
                 ERROR("Failed to receive an ack");
                 keep_sending = 0;
             }
             if (pkt_decode(response_buf, ACK_PKT_SIZE, ack) != PKT_OK) {
-                ERROR("Failed to decode ack");
-                keep_sending = 0;
-            }
-            if (pkt_get_type(ack) == PTYPE_DATA || pkt_get_tr(ack) == 1) {
-                LOG("Wrongfully get a data pkt or a truncated (n)ack.");
-            } else if (pkt_get_type(ack) == PTYPE_ACK) {
-                LOG("ACK seqnum %d expected, we got %d", cur_seqnum, pkt_get_seqnum(ack));
-                LOG("min_seqnum = %d", pkt_get_seqnum(sliding_window[0]));
-                /* If the ack seqnum is a successor then we can slide
-                 * the window. This takes in account cumulative acks.
-                 */
-                if (left_to_send > 0 &&
-                    seqnum_succ(pkt_get_seqnum(sliding_window[0]),
-                        pkt_get_seqnum(ack))) {
-                    /* Find out how much we ned to slide */
-                    size_t nb_slide = seqnum_diff(pkt_get_seqnum(sliding_window[0]),
+                ERROR("Corrupted packet, ignoring...");
+            } else {
+                if (pkt_get_type(ack) == PTYPE_DATA || pkt_get_tr(ack) == 1) {
+                    LOG("Wrongfully get a data pkt or a truncated (n)ack.");
+                } else if (pkt_get_type(ack) == PTYPE_ACK) {
+                    LOG("ACK seqnum %d expected, we got %d", cur_seqnum, pkt_get_seqnum(ack));
+                    LOG("min_seqnum = %d", pkt_get_seqnum(sliding_window[0]));
+                    /* If the ack seqnum is a successor then we can slide
+                     * the window. This takes in account cumulative acks.
+                     */
+                    if (left_to_send > 0 &&
+                        seqnum_succ(pkt_get_seqnum(sliding_window[0]),
+                            pkt_get_seqnum(ack))) {
+                        /* Find out how much we ned to slide */
+                        size_t nb_slide = seqnum_diff(pkt_get_seqnum(sliding_window[0]),
                             pkt_get_seqnum(ack));
-                    window = pkt_get_window(ack);
+                        window = pkt_get_window(ack);
+                        cur_seqnum = pkt_get_seqnum(ack);
 
-                    LOG("SLIDE of %zu ack seqnum = %d, min seq exp = %d, left_to_send = %zd",
-                        nb_slide, pkt_get_seqnum(ack), pkt_get_seqnum(sliding_window[0]), left_to_send);
-                    slide_window(sliding_window, f, data,
-                        &data_offset, &left_to_copy, &seqnum, window, nb_slide);
-                    left_to_send -= nb_slide; // XXX ?
-                    LOG("updated left_to_send = %zu (nb_slide = %zu)",
-                        left_to_send, nb_slide);
-                } else if (left_to_send == 0) {
-                    keep_sending = 0;
+                        LOG("SLIDE of %zu ack seqnum = %d, min seq exp = %d, left_to_send = %zd",
+                            nb_slide, pkt_get_seqnum(ack), pkt_get_seqnum(sliding_window[0]), left_to_send);
+                        slide_window(sliding_window, f, data,
+                            &data_offset, &left_to_copy, &seqnum, window, nb_slide);
+                        left_to_send -= nb_slide;
+                        LOG("updated left_to_send = %zu (nb_slide = %zu)",
+                            left_to_send, nb_slide);
+                    } else if (left_to_send == 0) {
+                        keep_sending = 0;
+                    }
+                } else if (pkt_get_type(ack) == PTYPE_NACK) {
+                    /* Deal with NACKs, go back to the truncated pkt */
+                    LOG("NACK received, please implement what to do");
                 }
-            } else if (pkt_get_type(ack) == PTYPE_NACK) {
-                /* Deal with NACKs, go back to the truncated pkt */
-                LOG("NACK received, please implement what to do");
             }
             LOG("\n");
             pkt_del(ack);
@@ -335,7 +336,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
     }
 
     /* Finish transmission */
-    send_terminating_packet(sfd, seqnum);
+    send_terminating_packet(sfd, --seqnum);
 }
 
 int

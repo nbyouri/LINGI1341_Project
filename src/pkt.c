@@ -9,7 +9,9 @@
 pkt_t *
 pkt_new()
 {
-    return calloc(1, sizeof(pkt_t));
+    pkt_t *pkt = calloc(1, sizeof(pkt_t));
+    pkt->header.tr = 0;
+    return pkt;
 }
 
 void
@@ -358,12 +360,7 @@ increment_seqnum(uint8_t *seqnum)
  */
 int
 seqnum_succ(uint8_t left, uint8_t right) {
-    if (left == MAX_SEQNUM - 1) {
-        left = 0;
-        return left <= right;
-    } else {
-        return left < right;
-    }
+    return seqnum_diff(left, right) <  MAX_WINDOW_SIZE;
 }
 
 /*
@@ -372,9 +369,7 @@ seqnum_succ(uint8_t left, uint8_t right) {
 int
 seqnum_diff(uint8_t left, uint8_t right) {
     if (right < left) {
-        uint8_t diff = MAX_SEQNUM - left;
-        diff += right;
-        return diff;
+        return (MAX_SEQNUM - left) + right;
     } else {
         return right - left;
     }
