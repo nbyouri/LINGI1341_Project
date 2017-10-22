@@ -14,7 +14,6 @@
  * Fill window and check which packet is missing
  * return 1 to authorize the writing, else 0
  */
-
 static int
 fill_window(minqueue_t *pkt_queue, pkt_t* pkt, size_t* window_size, uint8_t* min_missing_pkt) {
     uint8_t actual_seqnum = pkt_get_seqnum(pkt);
@@ -24,13 +23,16 @@ fill_window(minqueue_t *pkt_queue, pkt_t* pkt, size_t* window_size, uint8_t* min
     }
     if (actual_seqnum == *min_missing_pkt) {
         increment_seqnum(min_missing_pkt);
-        (*window_size)--;
+        if (*window_size != 0)
+           (*window_size)--;
         return 1;
     }
     /* Check if the packet is not out sequenced */
-    if (seqnum_diff(*min_missing_pkt, actual_seqnum) < MAX_WINDOW_SIZE)
-        (*window_size)--;
-
+    if (seqnum_diff(*min_missing_pkt, actual_seqnum) < MAX_WINDOW_SIZE
+         && seqnum_diff(*min_missing_pkt, actual_seqnum) >= 0){
+         if(*window_size != 0)
+             (*window_size)--;
+    }
     return 0;
 
 }
@@ -67,7 +69,8 @@ write_packet(FILE *f, minqueue_t *pkt_queue, size_t *window_size, uint8_t *seqnu
                 *last_seqnum_written = actual_seqnum;
             }
             minq_pop(pkt_queue);
-            (*window_size)++;
+            if(*window_size != MAX_WINDOW_SIZE - 1)
+                (*window_size)++;
             if (*min_missing_pkt == actual_seqnum)
                 increment_seqnum(min_missing_pkt);
 
@@ -179,9 +182,11 @@ receive_data (FILE *f, int sfd)
                     pkt_del(pkt);
                     continue;
                 }
-                /* Send NACK and ignore packet if it's truncated */
-                if (pkt_get_tr(pkt) == 1) {
-                    send_response(pkt, sfd, pkt_get_seqnum(pkt), window_size);
+                /* Send NACK and ignore packet if it's truncated and if it's not out sequenced */
+                if (pkt_get_tr(pkt) == 1
+                    && seqnum_diff(min_missing_pkt, pkt_get_seqnum(pkt)) < MAX_WINDOW_SIZE
+                    && seqnum_diff(min_missing_pkt, pkt_get_seqnum(pkt)) >= 0){
+                    send_response(pkt, sfd, min_missing_pkt, window_size);
                     pkt_del(pkt);
                     continue;
                 }
