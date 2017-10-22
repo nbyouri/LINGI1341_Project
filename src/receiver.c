@@ -39,7 +39,9 @@ fill_window(minqueue_t *pkt_queue, pkt_t* pkt, size_t* window_size,
                  ERROR("Failed to add pkt to queue.");
                  return 0;
              }
+        return 1;
     }
+    pkt_del(pkt);
     return 0;
 
 }
@@ -68,8 +70,6 @@ write_packet(FILE *f, minqueue_t *pkt_queue, size_t *window_size,
         size_t len = pkt_get_length(pkt);
         uint8_t actual_seqnum = pkt_get_seqnum(pkt);
         if(seqnum_diff(*min_missing_pkt, actual_seqnum) < 0) {
-            LOG("Writing stopped, wait for missing packet, seqnum %d",
-            *min_missing_pkt);
             keep_writing = 0;
         }
         else {
@@ -183,10 +183,6 @@ receive_data (FILE *f, int sfd)
             if (pkt_gen_crc2(pkt) != pkt_get_crc2(pkt))
                 status = E_CRC;
             if (status == PKT_OK) {
-                /** XXX rework to break look ? */
-                LOG("[TEMP] last_seqnum_written : %zd  Seqnum received : %d",
-                last_seqnum_written, pkt_get_seqnum(pkt));
-                LOG("Min seqnum needed: %d", min_missing_pkt);
                 if (pkt_get_length(pkt) == 0 && last_seqnum_written == pkt_get_seqnum(pkt)) {
                     LOG("Sending ACK final : %d", pkt_get_seqnum(pkt));
                     send_response(pkt, sfd, pkt_get_seqnum(pkt), window_size);
@@ -209,7 +205,8 @@ receive_data (FILE *f, int sfd)
                       &seqnum_ack, &last_seqnum_written, &min_missing_pkt);
                 if(ready_to_send)
                     send_response(pkt, sfd, seqnum_ack, window_size);
-            }
+            } else
+                pkt_del(pkt);
             //if (keep_receiving && pkt != NULL)
             //    pkt_del(pkt);
         }
