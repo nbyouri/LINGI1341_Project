@@ -191,7 +191,7 @@ receive_data (FILE *f, int sfd)
                 if(ready_to_send)
                     send_response(pkt, sfd, seqnum_ack, window_size);
             }
-            if (keep_receiving)
+            if (keep_receiving && pkt != NULL)
                 pkt_del(pkt);
         }
     }
