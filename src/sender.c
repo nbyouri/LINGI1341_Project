@@ -141,13 +141,14 @@ make_window(pkt_t *sliding_window[], FILE *f, char *data,
  *
  */
 static void
-send_terminating_packet(int sfd, uint8_t seqnum) {
+send_terminating_packet(int sfd, uint8_t seqnum, uint8_t window) {
     size_t  len = sizeof(pkt_t);
     char    *buf = malloc(len);
     memset(buf, 0, len);
     pkt_t *end_pkt = pkt_new();
     pkt_set_type(end_pkt, PTYPE_DATA);
     pkt_set_seqnum(end_pkt, seqnum);
+    pkt_set_window(end_pkt, window);
     if (pkt_encode(end_pkt, buf, &len) != PKT_OK) {
         ERROR("Failed to encode end_pkt");
         goto end;
@@ -181,7 +182,7 @@ send_terminating_packet(int sfd, uint8_t seqnum) {
         free(ack_buf);
         ack_buf = NULL;
         if (rec == -1) {
-            send_terminating_packet(sfd, seqnum);
+            send_terminating_packet(sfd, seqnum, window);
         }
     } else {
         memset(ack_buf, '\0', ACK_PKT_SIZE);
@@ -194,9 +195,9 @@ send_terminating_packet(int sfd, uint8_t seqnum) {
             goto ack;
         }
         if (pkt_get_type(ack) == PTYPE_ACK) {
-            if (pkt_get_seqnum(ack) != seqnum) {
+            if (pkt_get_seqnum(ack) != ++seqnum) {
                 LOG("Received stale ACK (%d), resending...", pkt_get_seqnum(ack));
-                send_terminating_packet(sfd, seqnum);
+                send_terminating_packet(sfd, seqnum, window);
             } else {
                 LOG("ACK for terminating packet received.(%d)", pkt_get_seqnum(ack));
             }
@@ -261,7 +262,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
                 keep_sending = 0;
             }
 
-            LOG("Sending pkt %d", cur_seqnum);
+            LOG("Sending pkt %d window = %d", cur_seqnum, pkt_get_window(sliding_window[0]));
             if (keep_sending && send(sfd, buf, len, 0) == -1) {
                 ERROR("Failed to send pkt %d", cur_seqnum);
                 keep_sending = 0;
@@ -296,6 +297,8 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
                 if (pkt_get_type(ack) == PTYPE_DATA || pkt_get_tr(ack) == 1) {
                     LOG("Wrongfully get a data pkt or a truncated (n)ack.");
                 } else if (pkt_get_type(ack) == PTYPE_ACK) {
+                    LOG("Got an ack %d of length %d", pkt_get_seqnum(ack),
+                        pkt_get_length(ack));
                     /* If the ack seqnum is a successor then we can slide
                      * the window. This takes in account cumulative acks.
                      */
@@ -329,7 +332,8 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
     }
 
     /* Finish transmission */
-    send_terminating_packet(sfd, --seqnum);
+    LOG("ACK FOR TERM EXPECTED %d", seqnum);
+    send_terminating_packet(sfd, seqnum, window);
 }
 
 int

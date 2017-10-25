@@ -183,9 +183,11 @@ receive_data (FILE *f, int sfd)
             if (pkt_gen_crc2(pkt) != pkt_get_crc2(pkt))
                 status = E_CRC;
             if (status == PKT_OK) {
-                if (pkt_get_length(pkt) == 0 && last_seqnum_written == pkt_get_seqnum(pkt)) {
-                    LOG("Sending ACK final : %d", pkt_get_seqnum(pkt));
-                    send_response(pkt, sfd, pkt_get_seqnum(pkt), window_size);
+                if (pkt_get_length(pkt) == 0) {
+                    LOG("Got term packet %d", pkt_get_seqnum(pkt));
+                    increment_seqnum(&seqnum_ack);
+                    LOG("Sending ACK final : %d", seqnum_ack);
+                    send_response(pkt, sfd, seqnum_ack, window_size);
                     keep_receiving = 0;
                     pkt_del(pkt);
                     continue;
