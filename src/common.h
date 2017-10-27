@@ -159,8 +159,8 @@ size_t              nb_pkt_in_buffer(const ssize_t);
 void		    pkt_create(pkt_t*, uint8_t, uint8_t, uint8_t,
                                uint16_t, uint32_t, char *);
 void                increment_seqnum(uint8_t *);
-int                 seqnum_succ(uint8_t, uint8_t);
-int                 seqnum_diff(uint8_t, uint8_t);
+int                 seqnum_succ(ssize_t, ssize_t);
+int                 seqnum_diff(ssize_t, ssize_t);
 
 /* net.c function prototypes */
 const char*         real_address(const char *, struct sockaddr_in6 *);

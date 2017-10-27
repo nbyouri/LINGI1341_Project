@@ -55,7 +55,7 @@ pkt_decode(const char *data, const size_t len, pkt_t *pkt)
     if (!pkt_get_tr(pkt)) {
         if (pkt_gen_crc2(pkt) != pkt_gen_crc2(pkt)) {
             return E_CRC;
-        }
+       }
     }
 
 
@@ -359,7 +359,7 @@ increment_seqnum(uint8_t *seqnum)
  * Returns 1 if left is a successor seqnum of right, 0 otherwise
  */
 int
-seqnum_succ(uint8_t left, uint8_t right) {
+seqnum_succ(ssize_t left, ssize_t right) {
     return seqnum_diff(left, right) <  MAX_WINDOW_SIZE;
 }
 
@@ -367,10 +367,11 @@ seqnum_succ(uint8_t left, uint8_t right) {
  * Return the difference between two seqnum
  */
 int
-seqnum_diff(uint8_t left, uint8_t right) {
-    if (right < left) {
+seqnum_diff(ssize_t left, ssize_t right) {
+    if (left == -1)
+        return 1;
+    else if (right < left)
         return (MAX_SEQNUM - left) + right;
-    } else {
+    else
         return right - left;
-    }
 }
