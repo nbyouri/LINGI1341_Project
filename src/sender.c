@@ -262,7 +262,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
                 keep_sending = 0;
             }
 
-            LOG("Sending pkt %d window = %d", cur_seqnum, pkt_get_window(sliding_window[0]));
+            LOG("Sending pkt %d", cur_seqnum);
             if (keep_sending && send(sfd, buf, len, 0) == -1) {
                 ERROR("Failed to send pkt %d", cur_seqnum);
                 keep_sending = 0;
@@ -332,7 +332,6 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
     }
 
     /* Finish transmission */
-    LOG("ACK FOR TERM EXPECTED %d", seqnum);
     send_terminating_packet(sfd, seqnum, window);
 }
 
