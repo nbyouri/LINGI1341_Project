@@ -195,8 +195,8 @@ send_terminating_packet(int sfd, uint8_t seqnum, uint8_t window) {
             goto ack;
         }
         if (pkt_get_type(ack) == PTYPE_ACK) {
-            if (pkt_get_seqnum(ack) != ++seqnum) {
-                LOG("Received stale ACK (%d), resending...", pkt_get_seqnum(ack));
+            if (pkt_get_seqnum(ack) != seqnum) {
+                LOG("Received stale ACK %d, expected %d, resending...", pkt_get_seqnum(ack),seqnum);
                 send_terminating_packet(sfd, seqnum, window);
             } else {
                 LOG("ACK for terminating packet received.(%d)", pkt_get_seqnum(ack));
@@ -332,6 +332,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
     }
 
     /* Finish transmission */
+    seqnum++;
     send_terminating_packet(sfd, seqnum, window);
 }
 
