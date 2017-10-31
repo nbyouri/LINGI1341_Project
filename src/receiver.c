@@ -66,7 +66,7 @@ send_response(uint8_t tr, uint8_t seqnum,
     }
     LOG("Window size sent : %zd \n", window_size);
     /* Prepare the packet and send it */
-    pkt_create(pkt, type, seqnum, window_size, 0, last_timestamp, NULL);
+    pkt_create(pkt, type, seqnum, window_size, last_timestamp, NULL);
     size_t len = ACK_PKT_SIZE;
     buf = malloc(len);
     memset(buf, '\0', len);

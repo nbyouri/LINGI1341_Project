@@ -332,12 +332,11 @@ pkt_get_size(const pkt_t *pkt)
 void
 pkt_create(pkt_t* pkt, uint8_t type,
     uint8_t seqnum, uint8_t window, uint16_t length,
-    uint32_t timestamp, char* payload)
+    char* payload)
 {
     pkt_set_type(pkt, type);
     pkt_set_seqnum(pkt, seqnum);
     pkt_set_window(pkt, window);
-    pkt_set_timestamp(pkt, timestamp);
     pkt_set_payload(pkt, payload, length);
     pkt_set_crc1(pkt, pkt_gen_crc1(pkt));
     pkt_set_crc2(pkt, pkt_gen_crc2(pkt));

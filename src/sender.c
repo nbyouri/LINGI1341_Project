@@ -91,8 +91,7 @@ slide_window(pkt_t *sliding_window[], FILE *f, char *data,
             /* fill all fields of new pkt */
             sliding_window[i] = pkt_new();
 
-            /* set timestamp XXX */
-            pkt_create(sliding_window[i], PTYPE_DATA, *seqnum, window, length, 0, buf);
+            pkt_create(sliding_window[i], PTYPE_DATA, *seqnum, window, length, buf);
 
             increment_seqnum(seqnum);
 
@@ -124,8 +123,7 @@ make_window(pkt_t *sliding_window[], FILE *f, char *data,
         size_t length = 0;
         char *buf = get_payload(f, data, data_offset, left_to_copy, &length);
 
-        /* timestamp XXX */
-        pkt_create(sliding_window[i], PTYPE_DATA, *seqnum, window, length, 0, buf);
+        pkt_create(sliding_window[i], PTYPE_DATA, *seqnum, window, length, buf);
 
         increment_seqnum(seqnum);
 
@@ -236,6 +234,14 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
     int	    keep_sending = 1;
     pkt_t   *sliding_window[MAX_WINDOW_SIZE];   /* send buffer */
 
+    /* Timing variables */
+    /* http://www.cs.cmu.edu/afs/cs/academic/class/15213-f00/unpv12e/lib/rtt.c */
+    struct timeval ct = {0};
+    float          rtt = 0;                     /* Round-Trip-Time */
+    float          srtt = 0;                    /* Smoothed RTT */
+    float          rttvar = 0.75;               /* RTT variance */
+    float          rto = 3000;                  /* Retransmission Timeout */
+
     /* Build the initial sliding window */
     make_window(sliding_window, f, data,
         total_pkt_to_send, &data_offset,
@@ -256,13 +262,18 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
         if (window == 0) {
             LOG("Window is full, we need some ACKs");
         } else {
+            /* Update the timestamp before sending */
+            update_time(&ct);
+            uint32_t ts = ct.tv_usec;
+            LOG("Setting timestamp of %d", ts);
+            pkt_set_timestamp(sliding_window[0], ts);
             memset(buf, '\0', MAX_PKT_SIZE);
             if (pkt_encode(sliding_window[0], buf, &len) != PKT_OK) {
                 ERROR("Failed to encode packet %d", cur_seqnum);
                 keep_sending = 0;
             }
 
-            LOG("Sending pkt %d", cur_seqnum);
+            LOG("Sending pkt %d, window = %d", cur_seqnum, window);
             if (keep_sending && send(sfd, buf, len, 0) == -1) {
                 ERROR("Failed to send pkt %d", cur_seqnum);
                 keep_sending = 0;
@@ -272,7 +283,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
         }
 
         /* Poll for incoming data */
-        int ev = poll(fd, 1, RTO);
+        int ev = poll(fd, 1, rto);
 
         if (ev == -1) {
             ERROR("Poll failed %s", strerror(errno));
@@ -292,10 +303,10 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
                 keep_sending = 0;
             }
             if (pkt_decode(response_buf, ACK_PKT_SIZE, ack) != PKT_OK) {
-                ERROR("Corrupted packet, ignoring...");
+                LOG("Corrupted packet, ignoring...");
             } else {
                 if (pkt_get_type(ack) == PTYPE_DATA || pkt_get_tr(ack) == 1) {
-                    LOG("Wrongfully get a data pkt or a truncated (n)ack.");
+                    LOG("Truncated (n)ack, ignoring...");
                 } else if (pkt_get_type(ack) == PTYPE_ACK) {
                     LOG("Got an ack %d of length %d", pkt_get_seqnum(ack),
                         pkt_get_length(ack));
@@ -310,6 +321,31 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
                             pkt_get_seqnum(ack));
                         window = pkt_get_window(ack);
                         cur_seqnum = pkt_get_seqnum(ack);
+
+                        /* Calculate timestamp difference */
+                        update_time(&ct);
+                        rtt = ct.tv_usec - pkt_get_timestamp(ack);
+                        //LOG("RTT for ACK %d = %d", cur_seqnum, rtt);
+                        /* XXX put in another function */
+                        if (total_pkt_to_send == left_to_send) {
+                            /* initial srtt and rto calculation */
+                            srtt   = rtt;
+                            rttvar = rtt / 2;
+                            rto    = srtt + 4 * rttvar;
+                            LOG("Init rto = %f, current = %ld, rtt = %f", rto, ct.tv_usec, rtt);
+                        } else {
+                            /* normal srtt and rto calculations */
+                            double  delta = rtt - srtt;
+                            srtt   = delta/8;
+                            if (delta < 0.0)
+                                delta = -delta;
+
+                            rttvar += (delta - rttvar) / 4;
+                            rto = srtt + (4 * rttvar);
+                        }
+                        if (rto > MAX_TIMEOUT * 1000)
+                            rto = MAX_TIMEOUT * 1000;
+                        LOG("New RTO = %.3f ms", rto/1000);
 
                         slide_window(sliding_window, f, data,
                             &data_offset, &left_to_copy, &seqnum, window, nb_slide);

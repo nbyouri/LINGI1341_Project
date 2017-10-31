@@ -206,6 +206,7 @@ pkt_cmp(const void *a, const void *b)
 
     return timeval_cmp(&time_left, &time_right);
 }
+
 /*
  * Compare packets based on their timestamp values
  *  return a seqnum > b seqnum;
@@ -216,7 +217,9 @@ pkt_cmp_seqnum(const void *a, const void *b)
 	uint8_t left = ((pkt_t *)a)->header.seqnum;
 	uint8_t right = ((pkt_t *)b)->header.seqnum;
 	return left > right;
+            /* set timestamp XXX */
 }
+
 /*
  * Compare packets based on their seqnum values
  * return a seqnum == b seqnum
@@ -233,16 +236,14 @@ pkt_cmp_seqnum2(const void *a, const void *b)
 
 /*
  * Pack timeval structure into a timestamp
- * FIXME maybe don't use current time?
+ *
  */
 uint32_t
 pack_timestamp(struct timeval tv) {
     uint32_t ts = 0;
-    /* Pack seconds on the first 8 bits */
-    if (tv.tv_sec > 255) {
-        return 0;
-    }
+    /* Pack seconds on the first 4 bits */
     ts = tv.tv_sec << 24;
+    /* Add microseconds on the remaining 28 bits */
     ts |= tv.tv_usec;
     return ts;
 }
@@ -254,10 +255,10 @@ pack_timestamp(struct timeval tv) {
 struct timeval
 unpack_timestamp(uint32_t ts) {
     struct timeval tv;
-    /* First 8 bits contain the seconds */
-    tv.tv_sec = ts & 0xFF000000;
+    /* First 4 bits contain the seconds */
+    tv.tv_sec = ts & 0xFFF00000;
     /* The remaining bits contain the microseconds */
-    tv.tv_usec = ts & 0xFFFFFF;
+    tv.tv_usec = ts & 0xFFFFF;
     return tv;
 }
 

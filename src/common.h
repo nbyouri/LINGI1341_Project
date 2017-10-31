@@ -53,8 +53,8 @@
 #define IP_VERSION          AF_INET6
 #define IP_LENGTH           INET6_ADDRSTRLEN
 #define IP_ANY              "::"
-#define MAX_TIMEOUT	    2
-#define RTO                 200 /* ms */
+#define MAX_TIMEOUT	    2000
+
 /*
  *
  * Data Types
@@ -156,8 +156,7 @@ uint32_t            pkt_gen_crc1(const pkt_t *);
 uint32_t            pkt_gen_crc2(const pkt_t *);
 void                pkt_to_string(const pkt_t *);
 size_t              nb_pkt_in_buffer(const ssize_t);
-void		    pkt_create(pkt_t*, uint8_t, uint8_t, uint8_t,
-                               uint16_t, uint32_t, char *);
+void		    pkt_create(pkt_t*, uint8_t, uint8_t, uint8_t, uint16_t, char *);
 void                increment_seqnum(uint8_t *);
 int                 seqnum_succ(ssize_t, ssize_t);
 int                 seqnum_diff(ssize_t, ssize_t);
