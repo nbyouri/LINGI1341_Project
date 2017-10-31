@@ -102,7 +102,7 @@ receive_data(FILE *f, int sfd)
       ERROR("Failed to initialize PQ");
       return;
   }
-  struct pollfd fds[]= {{sfd, POLLIN | POLLPRI, 0}};
+  struct pollfd fds[]= {{sfd, POLLIN | POLLPRI | POLLOUT, 0}};
 
   while(keep_receiving) {
     /* Wait infinitely for new packets */
@@ -111,72 +111,76 @@ receive_data(FILE *f, int sfd)
         ERROR("Poll failed");
         break;
     } else {
-      /* Empty the queue and write packets */
-      write_packet(f, pkt_queue, &last_seqnum_written, &window_size, &min_seqnum_missing);
-      /* End of loop if triggered */
-      if(!keep_receiving) break;
-      /* Receiving data */
-      char buf[MAX_PKT_SIZE];
-      ssize_t read = recv(sfd, buf, MAX_PKT_SIZE, 0);
-      if (read == -1) {
-          ERROR("Error receiving");
-          keep_receiving = 0;
-          continue;
+      if (fds[0].revents & POLLOUT) {
+          if (last_seqnum_written != -1)
+            send_response(tr, min_seqnum_missing, window_size, last_timestamp, sfd);
       }
-      pkt_t *pkt = pkt_new();
-      status = pkt_decode(buf, read, pkt);
-      /* Ignore if the packet is corrupted XXX*/
-      if (pkt_gen_crc1(pkt) != pkt_get_crc1(pkt))
-          status = E_CRC;
-      if (pkt_gen_crc2(pkt) != pkt_get_crc2(pkt))
-          status = E_CRC;
-      if (status != PKT_OK) {
-        LOG("Packet received is corrupted");
-        pkt_ready_for_queue = 0;
-        pkt_del(pkt);
-      }
-      /*Ignore if the window is full */
-      else if (window_size == 0)
-      {
-         LOG("Window is full, ignoring packet...");
-         pkt_ready_for_queue = 0;
-         pkt_del(pkt);
-      }
-      /* Check if the packet received is the terminal packet*/
-      else if (pkt_get_length(pkt) == 0) {
-         LOG("End packet received, seqnum : %d", pkt_get_seqnum(pkt));
-         increment_seqnum(&min_seqnum_missing);
-         keep_receiving = 0;
-         pkt_ready_for_queue = 0;
-         pkt_del(pkt);
-      }
-      /* Ignore if the packet is out of sequence */
-      else if (seqnum_diff(last_seqnum_written, pkt_get_seqnum(pkt)) > MAX_WINDOW_SIZE
-           || seqnum_diff(last_seqnum_written, pkt_get_seqnum(pkt)) <= 0)
-     {
-          LOG("The packet %d is out of sequence", pkt_get_seqnum(pkt));
+      if (fds[0].revents & (POLLIN | POLLPRI)) {
+        /* Empty the queue and write packets */
+        write_packet(f, pkt_queue, &last_seqnum_written, &window_size, &min_seqnum_missing);
+        /* End of loop if triggered */
+        if(!keep_receiving) break;
+        /* Receiving data */
+        char buf[MAX_PKT_SIZE];
+        ssize_t read = recv(sfd, buf, MAX_PKT_SIZE, 0);
+        if (read == -1) {
+            ERROR("Error receiving");
+            keep_receiving = 0;
+            continue;
+        }
+        pkt_t *pkt = pkt_new();
+        status = pkt_decode(buf, read, pkt);
+        /* Ignore if the packet is corrupted XXX*/
+        if (pkt_gen_crc1(pkt) != pkt_get_crc1(pkt))
+            status = E_CRC;
+        if (pkt_gen_crc2(pkt) != pkt_get_crc2(pkt))
+            status = E_CRC;
+        if (status != PKT_OK) {
+          LOG("Packet received is corrupted");
           pkt_ready_for_queue = 0;
           pkt_del(pkt);
-      }
-      /* Check if the packet is truncated */
-      else if (pkt_get_tr(pkt) == 1) {
-        LOG("The packet %d is truncated, sending NACK...", pkt_get_seqnum(pkt));
-        pkt_ready_for_queue = 0;
-        last_timestamp = pkt_get_timestamp(pkt);
-        tr = pkt_get_tr(pkt);
-        pkt_del(pkt);
-      } else {
-        LOG("Packet %d correct ! Adding to queue", pkt_get_seqnum(pkt));
-        pkt_ready_for_queue = 1;
-      }
-      /* Add to queue and decrement buffer if the packet is correct */
-      if (pkt_ready_for_queue) {
-          add_to_window(pkt_queue, pkt, &window_size, &min_seqnum_missing);
+        }
+        /*Ignore if the window is full */
+        else if (window_size == 0)
+        {
+           LOG("Window is full, ignoring packet...");
+           pkt_ready_for_queue = 0;
+           pkt_del(pkt);
+        }
+        /* Check if the packet received is the terminal packet*/
+        else if (pkt_get_length(pkt) == 0) {
+           LOG("End packet received, seqnum : %d", pkt_get_seqnum(pkt));
+           increment_seqnum(&min_seqnum_missing);
+           keep_receiving = 0;
+           pkt_ready_for_queue = 0;
+           pkt_del(pkt);
+        }
+        /* Ignore if the packet is out of sequence */
+        else if (seqnum_diff(last_seqnum_written, pkt_get_seqnum(pkt)) > MAX_WINDOW_SIZE
+             || seqnum_diff(last_seqnum_written, pkt_get_seqnum(pkt)) <= 0)
+       {
+            LOG("The packet %d is out of sequence", pkt_get_seqnum(pkt));
+            pkt_ready_for_queue = 0;
+            pkt_del(pkt);
+        }
+        /* Check if the packet is truncated */
+        else if (pkt_get_tr(pkt) == 1) {
+          LOG("The packet %d is truncated, sending NACK...", pkt_get_seqnum(pkt));
+          pkt_ready_for_queue = 0;
           last_timestamp = pkt_get_timestamp(pkt);
           tr = pkt_get_tr(pkt);
+          pkt_del(pkt);
+        } else {
+          LOG("Packet %d correct ! Adding to queue", pkt_get_seqnum(pkt));
+          pkt_ready_for_queue = 1;
+        }
+        /* Add to queue and decrement buffer if the packet is correct */
+        if (pkt_ready_for_queue) {
+            add_to_window(pkt_queue, pkt, &window_size, &min_seqnum_missing);
+            last_timestamp = pkt_get_timestamp(pkt);
+            tr = pkt_get_tr(pkt);
+        }
       }
-      if (last_seqnum_written != -1)
-        send_response(tr, min_seqnum_missing, window_size, last_timestamp, sfd);
     }
   }
   minq_del(pkt_queue);
