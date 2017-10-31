@@ -12,28 +12,29 @@
 /* Add correct packet to the queue and decrement window_size */
 static void
 add_to_window(minqueue_t *pkt_queue, pkt_t *pkt, size_t *window_size,
-  uint8_t *min_seqnum_missing)
+    uint8_t *min_seqnum_missing)
 {
-  /*If the packet added is the min_missing packet, increment it*/
-  if (*min_seqnum_missing == pkt_get_seqnum(pkt)) {
-    increment_seqnum(min_seqnum_missing);
+    /*If the packet added is the min_missing packet, increment it*/
+    if (*min_seqnum_missing == pkt_get_seqnum(pkt)) {
+        increment_seqnum(min_seqnum_missing);
         LOG("Increment seqnum when add queue :%d", *min_seqnum_missing);
-  }
+    }
 
-  if(minq_push(pkt_queue,pkt)) {
-    ERROR("Failed to add pkt queue");
-    return;
-  }
-  (*window_size)--;
+    if (minq_push(pkt_queue,pkt)) {
+        ERROR("Failed to add pkt queue");
+        return;
+    }
+    (*window_size)--;
 }
 
 /* Write packets and pop them in the queue if they're written */
 static void
 write_packet(FILE *f,minqueue_t *pkt_queue, ssize_t *last_seqnum_written,
-size_t *window_size, uint8_t *min_seqnum_missing) {
+    size_t *window_size, uint8_t *min_seqnum_missing)
+{
     pkt_t *pkt = (pkt_t *)minq_peek(pkt_queue);
     while (pkt && seqnum_diff(*last_seqnum_written, pkt_get_seqnum(pkt)) == 1) {
-      /* Write if the seqnum is the next seqnum expected */
+        /* Write if the seqnum is the next seqnum expected */
         LOG("Writing seq %d", pkt_get_seqnum(pkt));
         write_file(f, pkt_get_payload(pkt), pkt_get_length(pkt));
         *last_seqnum_written = pkt_get_seqnum(pkt);
@@ -44,15 +45,16 @@ size_t *window_size, uint8_t *min_seqnum_missing) {
     }
     /* Update newest min missing seqnum */
     if (*last_seqnum_written >= *min_seqnum_missing) {
-      *min_seqnum_missing = *last_seqnum_written;
-      increment_seqnum(min_seqnum_missing);
+        *min_seqnum_missing = *last_seqnum_written;
+        increment_seqnum(min_seqnum_missing);
     }
 }
 
 /* General function for sending ACK/NACK */
 static void
 send_response(uint8_t tr, uint8_t seqnum,
-  size_t window_size, uint32_t last_timestamp, int sfd) {
+    size_t window_size, uint32_t last_timestamp, int sfd)
+{
     char    *buf = NULL;
     pkt_t   *pkt = pkt_new();
     uint8_t type = 0;
@@ -88,107 +90,115 @@ send_response(uint8_t tr, uint8_t seqnum,
 static void
 receive_data(FILE *f, int sfd)
 {
-  pkt_status_code status = PKT_OK;
-  int keep_receiving = 1;
-  int pkt_ready_for_queue = 0;
-  size_t window_size = MAX_WINDOW_SIZE - 1;
-  ssize_t last_seqnum_written = -1;
-  uint32_t last_timestamp = 0;      /* Last timestamp from the packet received*/
-  uint8_t tr = 0;                   /* Tr from the packet received */
-  uint8_t min_seqnum_missing = 0;   /* Min seqnum packet sequenced needed */
-  minqueue_t* pkt_queue = NULL;     /* Minimum oriented priority queue serving
-                                       received buffer */
-  if (!(pkt_queue = minq_new(pkt_cmp_seqnum, pkt_cmp_seqnum2))) {
-      ERROR("Failed to initialize PQ");
-      return;
-  }
-  struct pollfd fds[]= {{sfd, POLLIN | POLLPRI | POLLOUT, 0}};
-
-  while(keep_receiving) {
-    /* Empty the queue and write packets */
-    write_packet(f, pkt_queue, &last_seqnum_written, &window_size, &min_seqnum_missing);
-    /* End of loop if triggered */
-    if(!keep_receiving) break;
-    /* Wait infinitely for new packets */
-    int ev = poll(fds, 1, -1);
-    if (ev == -1) {
-        ERROR("Poll failed");
-        break;
-    } else {
-      if (fds[0].revents & POLLOUT) {
-          /* Don't send ACK if there's no packet received */
-          if (last_seqnum_written != -1 && keep_receiving == 1)
-             send_response(tr, min_seqnum_missing, window_size, last_timestamp, sfd);
-          /* Avoid surcharge network with ACK, sleep 200ms */
-          if (!(fds[0].revents & (POLLIN | POLLPRI)))
-             usleep(10 * MAX_TIMEOUT);
-      }
-      if (fds[0].revents & (POLLIN | POLLPRI)) {
-        /* Receiving data */
-        char buf[MAX_PKT_SIZE];
-        ssize_t read = recv(sfd, buf, MAX_PKT_SIZE, 0);
-        if (read == -1) {
-            ERROR("Error receiving");
-            keep_receiving = 0;
-            continue;
-        }
-        pkt_t *pkt = pkt_new();
-        status = pkt_decode(buf, read, pkt);
-        /* Ignore if the packet is corrupted XXX*/
-        if (pkt_gen_crc1(pkt) != pkt_get_crc1(pkt))
-            status = E_CRC;
-        if (pkt_gen_crc2(pkt) != pkt_get_crc2(pkt))
-            status = E_CRC;
-        if (status != PKT_OK) {
-          LOG("Packet received is corrupted");
-          pkt_ready_for_queue = 0;
-          pkt_del(pkt);
-        }
-        /*Ignore if the window is full */
-        else if (window_size == 0)
-        {
-           LOG("Window is full, ignoring packet...");
-           pkt_ready_for_queue = 0;
-           pkt_del(pkt);
-        }
-        /* Check if the packet received is the terminal packet*/
-        else if (pkt_get_length(pkt) == 0) {
-           LOG("End packet received, seqnum : %d", pkt_get_seqnum(pkt));
-           increment_seqnum(&min_seqnum_missing);
-           keep_receiving = 0;
-           pkt_ready_for_queue = 0;
-           pkt_del(pkt);
-           send_response(tr, min_seqnum_missing, window_size, last_timestamp, sfd);
-        }
-        /* Ignore if the packet is out of sequence */
-        else if (seqnum_diff(last_seqnum_written, pkt_get_seqnum(pkt)) > MAX_WINDOW_SIZE
-             || seqnum_diff(last_seqnum_written, pkt_get_seqnum(pkt)) <= 0)
-       {
-            LOG("The packet %d is out of sequence", pkt_get_seqnum(pkt));
-            pkt_ready_for_queue = 0;
-            pkt_del(pkt);
-        }
-        /* Check if the packet is truncated */
-        else if (pkt_get_tr(pkt) == 1) {
-          LOG("The packet %d is truncated, sending NACK...", pkt_get_seqnum(pkt));
-          pkt_ready_for_queue = 0;
-          last_timestamp = pkt_get_timestamp(pkt);
-          tr = pkt_get_tr(pkt);
-          pkt_del(pkt);
-        } else {
-          LOG("Packet %d correct ! Adding to queue", pkt_get_seqnum(pkt));
-          pkt_ready_for_queue = 1;
-        }
-        /* Add to queue and decrement buffer if the packet is correct */
-        if (pkt_ready_for_queue) {
-            add_to_window(pkt_queue, pkt, &window_size, &min_seqnum_missing);
-            last_timestamp = pkt_get_timestamp(pkt);
-            tr = pkt_get_tr(pkt);
-        }
-      }
+    pkt_status_code status = PKT_OK;
+    int keep_receiving = 1;
+    int pkt_ready_for_queue = 0;
+    size_t window_size = MAX_WINDOW_SIZE - 1;
+    ssize_t last_seqnum_written = -1;
+    uint32_t last_timestamp = 0;      /* Last timestamp from the pkt received */
+    uint8_t tr = 0;                   /* Tr from the packet received */
+    uint8_t min_seqnum_missing = 0;   /* Min seqnum packet sequenced needed */
+    minqueue_t* pkt_queue = NULL;     /* Minimum oriented priority queue serving
+                                         received buffer */
+    if (!(pkt_queue = minq_new(pkt_cmp_seqnum, pkt_cmp_seqnum2))) {
+        ERROR("Failed to initialize PQ");
+        return;
     }
-  }
-  minq_del(pkt_queue);
+    struct pollfd fds[]= {{sfd, POLLIN | POLLPRI | POLLOUT, 0}};
+    /* Main loop */
+    while (keep_receiving) {
+        /* Empty the queue and write packets */
+        write_packet(f, pkt_queue, &last_seqnum_written,
+            &window_size, &min_seqnum_missing);
+        /* End of loop if triggered */
+        if(!keep_receiving) break;
+        /* Wait infinitely for new packets */
+        int ev = poll(fds, 1, -1);
+        if (ev == -1) {
+            ERROR("Poll failed");
+            break;
+        } else {
+            if (fds[0].revents & POLLOUT) {
+                /* Don't send ACK if there's no packet received */
+                if (last_seqnum_written != -1 && keep_receiving == 1)
+                    send_response(tr, min_seqnum_missing, window_size,
+                      last_timestamp, sfd);
+                /* Avoid surcharge network with ACK, sleep 200ms */
+                if (!(fds[0].revents & (POLLIN | POLLPRI)))
+                    usleep(10 * MAX_TIMEOUT);
+            }
+            if (fds[0].revents & (POLLIN | POLLPRI)) {
+                /* Receiving data */
+                char buf[MAX_PKT_SIZE];
+                ssize_t read = recv(sfd, buf, MAX_PKT_SIZE, 0);
+                if (read == -1) {
+                    ERROR("Error receiving");
+                    keep_receiving = 0;
+                    continue;
+                }
+                pkt_t *pkt = pkt_new();
+                status = pkt_decode(buf, read, pkt);
+                /* Ignore if the packet is corrupted XXX*/
+                if (pkt_gen_crc1(pkt) != pkt_get_crc1(pkt))
+                    status = E_CRC;
+                if (pkt_gen_crc2(pkt) != pkt_get_crc2(pkt))
+                    status = E_CRC;
+                if (status != PKT_OK) {
+                    LOG("Packet received is corrupted");
+                    pkt_ready_for_queue = 0;
+                    pkt_del(pkt);
+                }
+                /*Ignore if the window is full */
+                else if (window_size == 0)
+                {
+                    LOG("Window is full, ignoring packet...");
+                    pkt_ready_for_queue = 0;
+                    pkt_del(pkt);
+                }
+                /* Check if the packet received is the terminal packet*/
+                else if (pkt_get_length(pkt) == 0) {
+                    LOG("End packet received, seqnum : %d",
+                        pkt_get_seqnum(pkt));
+                    increment_seqnum(&min_seqnum_missing);
+                    keep_receiving = 0;
+                    pkt_ready_for_queue = 0;
+                    pkt_del(pkt);
+                    send_response(tr, min_seqnum_missing, window_size,
+                      last_timestamp, sfd);
+                }
+                /* Ignore if the packet is out of sequence */
+                else if (seqnum_diff(last_seqnum_written, pkt_get_seqnum(pkt)) > MAX_WINDOW_SIZE
+                        || seqnum_diff(last_seqnum_written, pkt_get_seqnum(pkt)) <= 0)
+                {
+                    LOG("The packet %d is out of sequence",
+                        pkt_get_seqnum(pkt));
+                    pkt_ready_for_queue = 0;
+                    pkt_del(pkt);
+                }
+                /* Check if the packet is truncated */
+                else if (pkt_get_tr(pkt) == 1) {
+                    LOG("The packet %d is truncated, sending NACK...",
+                        pkt_get_seqnum(pkt));
+                    pkt_ready_for_queue = 0;
+                    last_timestamp = pkt_get_timestamp(pkt);
+                    tr = pkt_get_tr(pkt);
+                    pkt_del(pkt);
+                } else {
+                    LOG("Packet %d correct ! Adding to queue",
+                        pkt_get_seqnum(pkt));
+                    pkt_ready_for_queue = 1;
+                }
+                /* Add to queue and decrement buffer if the packet is correct */
+                if (pkt_ready_for_queue) {
+                    add_to_window(pkt_queue, pkt, &window_size,
+                        &min_seqnum_missing);
+                    last_timestamp = pkt_get_timestamp(pkt);
+                    tr = pkt_get_tr(pkt);
+                }
+            }
+        }
+    }
+    minq_del(pkt_queue);
 }
 
 int
@@ -201,14 +211,14 @@ main(int argc, char **argv)
     if (argc >= 3) {
         while ((d = getopt(argc, argv, "f:")) != -1) {
             switch (d) {
-            case 'f':
-                memset(filename, 0, BUFSIZ);
-                memcpy(filename, optarg, strlen(optarg));
-                have_file = 1;
-                break;
-            default:
-                help();
-                return EXIT_FAILURE;
+                case 'f':
+                    memset(filename, 0, BUFSIZ);
+                    memcpy(filename, optarg, strlen(optarg));
+                    have_file = 1;
+                    break;
+                default:
+                    help();
+                    return EXIT_FAILURE;
             }
         }
     }
@@ -220,7 +230,7 @@ main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    /* check whether output file exists */
+    /* Check whether output file exists */
     FILE    *f = NULL;
     if (have_file && file_exists(filename) == 0) {
         ERROR("File alread exists.\n");
@@ -228,7 +238,7 @@ main(int argc, char **argv)
     } else if (have_file) {
         f = open_file(filename, 1);
     }
-    /* resolve the address */
+    /* Resolve the address */
     int port = parse_port(argv[1]);
     if (port == -1) {
         return EXIT_FAILURE;
@@ -240,7 +250,7 @@ main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    /* bind to the socket */
+    /* Bind to the socket */
     int sfd = create_socket(&addr, port, NULL, -1);
     if (sfd > 0 && wait_for_client(sfd) < 0) {
         ERROR("Could not connect the socket after the first packet.\n");
@@ -249,6 +259,5 @@ main(int argc, char **argv)
     }
 
     receive_data(have_file ? f : stdout, sfd);
-
     return EXIT_SUCCESS;
 }
