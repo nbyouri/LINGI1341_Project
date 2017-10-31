@@ -9,6 +9,8 @@ CFLAGS += -fstack-protector-all # Add canary code to detect stack smashing
 
 LDFLAGS+= -lz
 
+DEBUG=0 # To get logs on the sender and receiver
+
 
 all: clean receiver sender
 
@@ -16,10 +18,10 @@ REC_OBJS = src/receiver.c src/utils.c src/pkt.c src/net.c src/min_queue.c
 SEND_OBJS= src/sender.c src/utils.c src/pkt.c src/net.c src/min_queue.c
 
 receiver:
-	${CC} ${CFLAGS} ${REC_OBJS} -DDEBUG=1 -DPROGRAM_NAME=\"receiver\" -o receiver ${LDFLAGS}
+	${CC} ${CFLAGS} ${REC_OBJS} -DDEBUG=${DEBUG} -DPROGRAM_NAME=\"receiver\" -o receiver ${LDFLAGS}
 
 sender:
-	${CC} ${CFLAGS} ${SEND_OBJS} -DPROGRAM_NAME=\"sender\" -o sender ${LDFLAGS} -DDEBUG=0
+	${CC} ${CFLAGS} ${SEND_OBJS} -DDEBUG=${DEBUG} -DPROGRAM_NAME=\"sender\" -o sender ${LDFLAGS}
 
 tests: all
 	@echo -ne "\033[0;32mTesting transfer a file with size equal a packet\033[0m\n"
@@ -28,12 +30,16 @@ tests: all
 	@./tests/simple_file.sh
 	@echo -ne "\033[0;32mTesting transfer a file with size higher than window\033[0m\n"
 	@./tests/big_file.sh
-	@echo -ne "\033[0;32mTesting with some delay, loss, cut rate, error rate and jitter from receiver to sender\033[0m\n"
-	@./tests/test_linksim.sh
-	@echo -ne "\033[0;32mTesting with some delay, loss, cut rate, error rate and jitter from sender to receiver\033[0m\n"
-	@./tests/test_linksim1.sh
-	@echo -ne "\033[0;32mTesting with some delay, loss, cut rate, error rate and jitter bidirectional\033[0m\n"
-	@./tests/test_linksim2.sh
+	@if [ -f "link_sim" ]; then \
+		echo -ne "\033[0;32mTesting with some delay, loss, cut rate, error rate and jitter from receiver to sender\033[0m\n";	\
+		./tests/test_linksim.sh; \
+		echo -ne "\033[0;32mTesting with some delay, loss, cut rate, error rate and jitter from sender to receiver\033[0m\n"; \
+		./tests/test_linksim1.sh; \
+		echo -ne "\033[0;32mTesting with some delay, loss, cut rate, error rate and jitter bidirectional\033[0m\n"; \
+		./tests/test_linksim2.sh; \
+	else  \
+		echo -ne "\033[0;32mlink_sim not available, skipping further tests\033[0m\n"; \
+	fi
 
 archive:
 	@zip project1_mouton_sias.zip receiver sender link_sim small_file Makefile medium_file big_file
