@@ -66,7 +66,8 @@ send_response(uint8_t tr, uint8_t seqnum,
     }
     LOG("Window size sent : %zd \n", window_size);
     /* Prepare the packet and send it */
-    pkt_create(pkt, type, seqnum, window_size, last_timestamp, NULL);
+    pkt_create(pkt, type, seqnum, window_size, 0, NULL);
+    pkt_set_timestamp(pkt, last_timestamp);
     size_t len = ACK_PKT_SIZE;
     buf = malloc(len);
     memset(buf, '\0', len);
@@ -110,8 +111,10 @@ receive_data(FILE *f, int sfd)
         ERROR("Poll failed");
         break;
     } else {
-        write_packet(f, pkt_queue, &last_seqnum_written, &window_size, &min_seqnum_missing);
-        if(!keep_receiving) break;
+      /* Empty the queue and write packets */
+      write_packet(f, pkt_queue, &last_seqnum_written, &window_size, &min_seqnum_missing);
+      /* End of loop if triggered */
+      if(!keep_receiving) break;
       /* Receiving data */
       char buf[MAX_PKT_SIZE];
       ssize_t read = recv(sfd, buf, MAX_PKT_SIZE, 0);
@@ -131,6 +134,13 @@ receive_data(FILE *f, int sfd)
         LOG("Packet received is corrupted");
         pkt_ready_for_queue = 0;
         pkt_del(pkt);
+      }
+      /*Ignore if the window is full */
+      else if (window_size == 0)
+      {
+         LOG("Window is full, ignoring packet...");
+         pkt_ready_for_queue = 0;
+         pkt_del(pkt);
       }
       /* Check if the packet received is the terminal packet*/
       else if (pkt_get_length(pkt) == 0) {
@@ -165,7 +175,8 @@ receive_data(FILE *f, int sfd)
           last_timestamp = pkt_get_timestamp(pkt);
           tr = pkt_get_tr(pkt);
       }
-      send_response(tr, min_seqnum_missing, window_size, last_timestamp, sfd);
+      if (last_seqnum_written != -1)
+        send_response(tr, min_seqnum_missing, window_size, last_timestamp, sfd);
     }
   }
   minq_del(pkt_queue);
