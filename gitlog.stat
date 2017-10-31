@@ -1,3 +1,160 @@
+commit 53d2b7fb68256ad1281ce7803c163dcf52991c49
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Tue Oct 31 17:53:41 2017 +0100
+
+    [rapport.pdf] Add second version of the report.
+
+ rapport.pdf | Bin 813145 -> 839351 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+
+commit 0716aec61c2232b98c39bc4a56c667ca2ba7ff0d
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Tue Oct 31 17:43:33 2017 +0100
+
+    [Makefile] Make link_sim tests and debugging optional
+
+ Makefile | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)
+
+commit ad68316917659a9130fc88c30bba9674847a2dfd
+Author: Nicolas Sias <nsias@vader.info.ucl.ac.be>
+Date:   Tue Oct 31 17:16:54 2017 +0100
+
+    [receiver.c] Style fixes
+
+ src/receiver.c | 259 +++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 134 insertions(+), 125 deletions(-)
+
+commit 04db635a4a02c14f820784286279d697c54d8394
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Tue Oct 31 16:52:23 2017 +0100
+
+    [many files] Style fixes.
+
+ Makefile     |  4 +--
+ src/common.h | 13 +++-------
+ src/net.c    | 30 +--------------------
+ src/pkt.c    | 44 +++++--------------------------
+ src/sender.c | 65 +++++++++++++++++++++++-----------------------
+ src/utils.c  | 85 ------------------------------------------------------------
+ 6 files changed, 44 insertions(+), 197 deletions(-)
+
+commit 7f19032dc55b5782afaf61b3cdb8c65e4aacce67
+Author: Nicolas Sias <nsias@vader.info.ucl.ac.be>
+Date:   Tue Oct 31 16:49:31 2017 +0100
+
+    [receiver.c] Avoid spamming repeated ACKs
+
+ src/receiver.c | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)
+
+commit c9c7df8f15baed35958876d28753b31d05bc07aa
+Author: Nicolas Sias <nsias@binks.info.ucl.ac.be>
+Date:   Tue Oct 31 13:26:24 2017 +0100
+
+    [receiver.c] fast retransmission, keep sending ack like a barbarian
+
+ src/receiver.c | 126 +++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 65 insertions(+), 61 deletions(-)
+
+commit ee5da40948ae9b719b27da66fce05f397d9bcb44
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Tue Oct 31 13:15:04 2017 +0100
+
+    [sender.c] Use seconds for poll
+
+ src/sender.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 8c5a1ff2585472fd8805cc6c07bb47513856652e
+Author: Nicolas Sias <nsias@binks.info.ucl.ac.be>
+Date:   Tue Oct 31 12:52:41 2017 +0100
+
+    [receiver.c] Fix if the first packet is not correct
+
+ src/receiver.c | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)
+
+commit 90a24c2db0da8cd4dccda248a946bbc4f4ae07bb
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Tue Oct 31 11:49:59 2017 +0100
+
+    Implement RTO calculations using te Jacobson algorithm.
+
+ src/common.h   |  7 +++----
+ src/pkt.c      |  3 +--
+ src/receiver.c |  2 +-
+ src/sender.c   | 52 ++++++++++++++++++++++++++++++++++++++++++++--------
+ src/utils.c    | 17 +++++++++--------
+ 5 files changed, 58 insertions(+), 23 deletions(-)
+
+commit 06f22208c3bd195f6e4c9a4213aa8a5faeccb73c
+Author: Youri Mouton <youri@NetBSD.org>
+Date:   Mon Oct 30 12:04:30 2017 +0100
+
+    [sender.c] Fix expected seqnum for terminating ack
+
+ src/sender.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+commit 6e97e9c9a2bcaeac8f875bbc5b8220ae1678dbc0
+Author: Nicolas Sias <nsias@hoth.info.ucl.ac.be>
+Date:   Fri Oct 27 18:41:38 2017 +0200
+
+    [receiver.c] Rework control flow
+
+ src/common.h   |   4 +-
+ src/pkt.c      |  13 +--
+ src/receiver.c | 306 ++++++++++++++++++++++++---------------------------------
+ 3 files changed, 139 insertions(+), 184 deletions(-)
+
+commit 6bb8774f4ff3570847378d9aa6ce58cc055f379b
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Fri Oct 27 16:51:32 2017 +0200
+
+    [sender.c] Cleanup.
+
+ src/sender.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+commit 4b7076724db9b45e9ada828f4eb500501cf26dba
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Wed Oct 25 12:47:00 2017 +0200
+
+    Interop quick fixes
+
+ Makefile       | 18 +++++++++---------
+ src/receiver.c |  8 +++++---
+ src/sender.c   | 16 ++++++++++------
+ 3 files changed, 24 insertions(+), 18 deletions(-)
+
+commit b38c86ca50b226476b389f41aa347407e3ee3d0e
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Mon Oct 23 02:02:01 2017 +0200
+
+    [Makefile] Don\'t test with link_sim
+
+ Makefile | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
+
+commit 67c5c483b79a2efd1ef5e1bcd8de3877acd577ba
+Author: nbyouri <youri.mout@gmail.com>
+Date:   Mon Oct 23 01:51:11 2017 +0200
+
+    Fix tests
+
+ Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit c9e3555b9251d7b2a01b77eeebc5cd1355e72f8c
+Author: nsias <sias.nicolas.01@gmail.com>
+Date:   Sun Oct 22 22:04:28 2017 +0200
+
+    [gitlog.stat] Add git history
+
+ gitlog.stat | 931 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 931 insertions(+)
+
 commit 690e3b795cd6b003a203c3fd8ffb06b25fa5dc57
 Author: nsias <sias.nicolas.01@gmail.com>
 Date:   Sun Oct 22 22:02:54 2017 +0200
