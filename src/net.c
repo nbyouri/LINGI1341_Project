@@ -40,7 +40,7 @@ real_address(const char *address, struct sockaddr_in6 *rval)
     /* go through the linked list and find ipv6 addresses */
     while (result) {
         if (result->ai_family == IP_VERSION) {
-            memcpy(rval, (struct sockaddr_in6 *)result->ai_addr, sizeof(*rval));
+            memcpy(rval,(struct sockaddr_in6 *)result->ai_addr, sizeof(*rval));
             rval->sin6_family = IP_VERSION;
             break;
         }
@@ -131,33 +131,5 @@ wait_for_client(int sfd)
         }
     }
 
-    return 0;
-}
-
-int
-encode_address(const char *address, struct sockaddr_in6 *ip)
-{
-    memset(ip, 0, sizeof(struct sockaddr_in6));
-    if (inet_pton(IP_VERSION, address, &(ip->sin6_addr)) < 1) {
-        ERROR("inet_pton failed: %s\n", strerror(errno));
-        return -1;
-    }
-    ip->sin6_family = IP_VERSION;
-    return 0;
-}
-
-int
-decode_address(const struct sockaddr_in6 *s, char *address, size_t len)
-{
-    if (len < IP_LENGTH) {
-        ERROR("decode_address: buffer too small.\n");
-        return -1;
-    }
-    memset(address, '\0', len);
-    if (inet_ntop(IP_VERSION, &(s->sin6_addr), address,
-            sizeof(address)) == NULL) {
-        ERROR("inet_ntop failed: %s\n", strerror(errno));
-        return -1;
-    }
     return 0;
 }

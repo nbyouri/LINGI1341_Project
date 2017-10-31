@@ -68,16 +68,6 @@ open_file(const char *path, int append)
 }
 
 /*
- * Load file to buffer
- *
- */
-size_t
-read_file(FILE *f, char **buf, size_t length)
-{
-    return fread(*buf, sizeof(char), length, f);
-}
-
-/*
  * Get file size
  *
  */
@@ -140,34 +130,6 @@ read_stdin(char **buf)
 }
 
 /*
- * Compare two timeval, return left > right
- *
- */
-int
-timeval_cmp(const struct timeval *left, const struct timeval *right)
-{
-	return left->tv_sec == right->tv_sec ?
-		left->tv_usec > right->tv_usec :
-		left->tv_sec > right->tv_sec;
-}
-
-/*
- *  Get difference between to timeval ( c = a - b )
- *
- */
-void
-timeval_diff(const struct timeval *a, const struct timeval *b, struct timeval *c)
-{
-	c->tv_sec = a->tv_sec - b->tv_sec;
-	c->tv_usec = a->tv_usec - b->tv_usec;
-	if (c->tv_usec < 0) {
-		if (--c->tv_sec)
-			c->tv_usec += 1000000;
-	}
-}
-
-
-/*
  * Update a timeval to the current time
  *
  */
@@ -193,22 +155,6 @@ update_time(struct timeval *clock)
 
 /*
  * Compare packets based on their timestamp values
- *
- */
-int
-pkt_cmp(const void *a, const void *b)
-{
-    uint32_t left = ((pkt_t *)a)->header.timestamp;
-    uint32_t right = ((pkt_t *)b)->header.timestamp;
-
-    struct timeval time_left = unpack_timestamp(left);
-    struct timeval time_right = unpack_timestamp(right);
-
-    return timeval_cmp(&time_left, &time_right);
-}
-
-/*
- * Compare packets based on their timestamp values
  *  return a seqnum > b seqnum;
  */
 int
@@ -217,7 +163,6 @@ pkt_cmp_seqnum(const void *a, const void *b)
 	uint8_t left = ((pkt_t *)a)->header.seqnum;
 	uint8_t right = ((pkt_t *)b)->header.seqnum;
 	return left > right;
-            /* set timestamp XXX */
 }
 
 /*
@@ -232,33 +177,3 @@ pkt_cmp_seqnum2(const void *a, const void *b)
 	uint8_t right = ((pkt_t *)b)->header.seqnum;
 	return left == right;
 }
-
-
-/*
- * Pack timeval structure into a timestamp
- *
- */
-uint32_t
-pack_timestamp(struct timeval tv) {
-    uint32_t ts = 0;
-    /* Pack seconds on the first 4 bits */
-    ts = tv.tv_sec << 24;
-    /* Add microseconds on the remaining 28 bits */
-    ts |= tv.tv_usec;
-    return ts;
-}
-
-/*
- * Unpack timestamp to a timeval structure
- *
- */
-struct timeval
-unpack_timestamp(uint32_t ts) {
-    struct timeval tv;
-    /* First 4 bits contain the seconds */
-    tv.tv_sec = ts & 0xFFF00000;
-    /* The remaining bits contain the microseconds */
-    tv.tv_usec = ts & 0xFFFFF;
-    return tv;
-}
-

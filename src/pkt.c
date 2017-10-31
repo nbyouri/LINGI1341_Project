@@ -270,30 +270,6 @@ pkt_set_payload(pkt_t *pkt, const char *data, const uint16_t length)
     return PKT_OK;
 }
 
-void
-pkt_to_string(const pkt_t *pkt)
-{
-    LOG("----- packet -----\n"
-        "header { \n"
-        "  type   = %d\n"
-        "  window = %d\n"
-        "  seqnum = %d\n"
-        "  length = %d\n"
-        "  timestamp = %d\n"
-        "  crc1 = %d\n"
-        "}\n"
-        "payload = %s\n"
-        "crc2 = %d\n",
-        pkt_get_type(pkt),
-        pkt_get_window(pkt),
-        pkt_get_seqnum(pkt),
-        pkt_get_length(pkt),
-        pkt_get_timestamp(pkt),
-        pkt_get_crc1(pkt),
-        pkt_get_payload(pkt) == NULL ? "[null]" : pkt_get_payload(pkt),
-        pkt_get_crc2(pkt));
-}
-
 /*
  *
  * Find how many packets to decode are in a buffer.
@@ -318,21 +294,11 @@ nb_pkt_in_buffer(const ssize_t bytes)
 }
 
 /*
- * Get packet size
- */
-size_t
-pkt_get_size(const pkt_t *pkt)
-{
-    return sizeof(pkt) + pkt_get_length(pkt) - sizeof(char *);
-}
-
-/*
  * Fill pkt fields
  */
 void
-pkt_create(pkt_t* pkt, uint8_t type,
-    uint8_t seqnum, uint8_t window, uint16_t length,
-    char* payload)
+pkt_create(pkt_t* pkt, uint8_t type, uint8_t seqnum,
+    uint8_t window, uint16_t length, char* payload)
 {
     pkt_set_type(pkt, type);
     pkt_set_seqnum(pkt, seqnum);
@@ -358,7 +324,8 @@ increment_seqnum(uint8_t *seqnum)
  * Returns 1 if left is a successor seqnum of right, 0 otherwise
  */
 int
-seqnum_succ(ssize_t left, ssize_t right) {
+seqnum_succ(ssize_t left, ssize_t right)
+{
     return seqnum_diff(left, right) <  MAX_WINDOW_SIZE;
 }
 
@@ -366,7 +333,8 @@ seqnum_succ(ssize_t left, ssize_t right) {
  * Return the difference between two seqnum
  */
 int
-seqnum_diff(ssize_t left, ssize_t right) {
+seqnum_diff(ssize_t left, ssize_t right)
+{
     if (left == -1)
         return 1;
     else if (right < left)

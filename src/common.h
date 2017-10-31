@@ -38,6 +38,7 @@
 
 #define _INFO(file, prefix, msg, ...)               \
     do {                                            \
+        if (DEBUG)                                  \
         fprintf(file, prefix ": "msg"\n",	    \
 	##__VA_ARGS__);                             \
     } while(0)
@@ -113,16 +114,9 @@ int                 write_file(FILE *, const char *, size_t);
 int                 file_size(FILE *);
 int                 file_set_position(FILE *, size_t);
 size_t              read_stdin(char **);
-int		    timeval_cmp(const struct timeval *,
-                                const struct timeval *);
-void	            timeval_diff(const struct timeval *,
-                                 const struct timeval *, struct timeval *);
-int                 pkt_cmp(const void *, const void *);
 int		    pkt_cmp_seqnum(const void*, const void*);
 int		    pkt_cmp_seqnum2(const void*, const void*);
 void	            update_time(struct timeval *clock);
-uint32_t            pack_timestamp(struct timeval);
-struct timeval      unpack_timestamp(uint32_t);
 
 /* pkt.c function prototypes */
 pkt_t*              pkt_new();
@@ -156,7 +150,8 @@ uint32_t            pkt_gen_crc1(const pkt_t *);
 uint32_t            pkt_gen_crc2(const pkt_t *);
 void                pkt_to_string(const pkt_t *);
 size_t              nb_pkt_in_buffer(const ssize_t);
-void		    pkt_create(pkt_t*, uint8_t, uint8_t, uint8_t, uint16_t, char *);
+void		    pkt_create(pkt_t*, uint8_t,
+                    uint8_t, uint8_t, uint16_t, char *);
 void                increment_seqnum(uint8_t *);
 int                 seqnum_succ(ssize_t, ssize_t);
 int                 seqnum_diff(ssize_t, ssize_t);
@@ -166,7 +161,5 @@ const char*         real_address(const char *, struct sockaddr_in6 *);
 int                 create_socket(struct sockaddr_in6 *, int,
                     struct sockaddr_in6 *, int);
 int                 wait_for_client(int);
-int                 encode_address(const char *, struct sockaddr_in6 *);
-int                 decode_address(const struct sockaddr_in6 *, char *, size_t);
 
 #endif /* __COMMON_H */

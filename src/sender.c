@@ -70,9 +70,10 @@ get_payload(FILE *f, char *data, size_t *data_offset,
  *
  */
 static void
-slide_window(pkt_t *sliding_window[], FILE *f, char *data,
-    size_t *data_offset, size_t *left_to_copy,
-    uint8_t *seqnum, uint8_t window, int n)
+slide_window(pkt_t *sliding_window[], FILE *f,
+    char *data, size_t *data_offset,
+    size_t *left_to_copy, uint8_t *seqnum,
+    uint8_t window, int n)
 {
     int i = 0;
     /* delete the first elements */
@@ -85,13 +86,15 @@ slide_window(pkt_t *sliding_window[], FILE *f, char *data,
     if (*left_to_copy > 0) {
         size_t firstel = MAX_WINDOW_SIZE - n;
         for (i = firstel; i < MAX_WINDOW_SIZE; i++) {
-            size_t length = 0;
-            char *buf = get_payload(f, data, data_offset, left_to_copy, &length);
+            size_t  length = 0;
+            char    *buf = get_payload(f, data, data_offset,
+                left_to_copy, &length);
 
             /* fill all fields of new pkt */
             sliding_window[i] = pkt_new();
 
-            pkt_create(sliding_window[i], PTYPE_DATA, *seqnum, window, length, buf);
+            pkt_create(sliding_window[i], PTYPE_DATA,
+                *seqnum, window, length, buf);
 
             increment_seqnum(seqnum);
 
@@ -104,11 +107,11 @@ slide_window(pkt_t *sliding_window[], FILE *f, char *data,
 /*
  *
  * Build initial window
- * FIXME maybe re-use allocated pkt_t instead of pkt_new() everytime.
+ *
  */
 static int
-make_window(pkt_t *sliding_window[], FILE *f, char *data,
-    size_t total_pkt_to_send,
+make_window(pkt_t *sliding_window[], FILE *f,
+    char *data, size_t total_pkt_to_send,
     size_t *data_offset, size_t *left_to_copy,
     uint8_t *seqnum, uint8_t window)
 {
@@ -123,7 +126,8 @@ make_window(pkt_t *sliding_window[], FILE *f, char *data,
         size_t length = 0;
         char *buf = get_payload(f, data, data_offset, left_to_copy, &length);
 
-        pkt_create(sliding_window[i], PTYPE_DATA, *seqnum, window, length, buf);
+        pkt_create(sliding_window[i], PTYPE_DATA,
+            *seqnum, window, length, buf);
 
         increment_seqnum(seqnum);
 
@@ -139,7 +143,8 @@ make_window(pkt_t *sliding_window[], FILE *f, char *data,
  *
  */
 static void
-send_terminating_packet(int sfd, uint8_t seqnum, uint8_t window) {
+send_terminating_packet(int sfd, uint8_t seqnum, uint8_t window)
+{
     size_t  len = sizeof(pkt_t);
     char    *buf = malloc(len);
     memset(buf, 0, len);
@@ -194,10 +199,12 @@ send_terminating_packet(int sfd, uint8_t seqnum, uint8_t window) {
         }
         if (pkt_get_type(ack) == PTYPE_ACK) {
             if (pkt_get_seqnum(ack) != seqnum) {
-                LOG("Received stale ACK %d, expected %d, resending...", pkt_get_seqnum(ack),seqnum);
+                LOG("Received stale ACK %d, expected %d"
+                    "resending...", pkt_get_seqnum(ack),seqnum);
                 send_terminating_packet(sfd, seqnum, window);
             } else {
-                LOG("ACK for terminating packet received.(%d)", pkt_get_seqnum(ack));
+                LOG("ACK for terminating packet received.(%d)",
+                    pkt_get_seqnum(ack));
             }
             goto ack;
         }
@@ -235,12 +242,11 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
     pkt_t   *sliding_window[MAX_WINDOW_SIZE];   /* send buffer */
 
     /* Timing variables */
-    /* http://www.cs.cmu.edu/afs/cs/academic/class/15213-f00/unpv12e/lib/rtt.c */
-    struct timeval ct = {0};
-    float          rtt = 0;                     /* Round-Trip-Time */
-    float          srtt = 0;                    /* Smoothed RTT */
+    struct timeval ct     = {0};
+    float          rtt    = 0;                  /* Round-Trip-Time */
+    float          srtt   = 0;                  /* Smoothed RTT */
     float          rttvar = 0.75;               /* RTT variance */
-    float          rto = 3000;                  /* Retransmission Timeout */
+    float          rto    = MAX_TIMEOUT;        /* Retransmission Timeout */
 
     /* Build the initial sliding window */
     make_window(sliding_window, f, data,
@@ -308,8 +314,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
                 if (pkt_get_type(ack) == PTYPE_DATA || pkt_get_tr(ack) == 1) {
                     LOG("Truncated (n)ack, ignoring...");
                 } else if (pkt_get_type(ack) == PTYPE_ACK) {
-                    LOG("Got an ack %d of length %d", pkt_get_seqnum(ack),
-                        pkt_get_length(ack));
+                    LOG("Got an ack %d", pkt_get_seqnum(ack));
                     /* If the ack seqnum is a successor then we can slide
                      * the window. This takes in account cumulative acks.
                      */
@@ -317,7 +322,8 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
                         seqnum_succ(pkt_get_seqnum(sliding_window[0]),
                             pkt_get_seqnum(ack))) {
                         /* Find out how much we ned to slide */
-                        size_t nb_slide = seqnum_diff(pkt_get_seqnum(sliding_window[0]),
+                        size_t nb_slide = seqnum_diff(
+                            pkt_get_seqnum(sliding_window[0]),
                             pkt_get_seqnum(ack));
                         window = pkt_get_window(ack);
                         cur_seqnum = pkt_get_seqnum(ack);
@@ -325,30 +331,23 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
                         /* Calculate timestamp difference */
                         update_time(&ct);
                         rtt = ct.tv_usec - pkt_get_timestamp(ack);
-                        //LOG("RTT for ACK %d = %d", cur_seqnum, rtt);
-                        /* XXX put in another function */
                         if (total_pkt_to_send == left_to_send) {
                             /* initial srtt and rto calculation */
                             srtt   = rtt;
                             rttvar = rtt / 2;
                             rto    = srtt + 4 * rttvar;
-                            LOG("Init rto = %f, current = %ld, rtt = %f", rto, ct.tv_usec, rtt);
                         } else {
                             /* normal srtt and rto calculations */
-                            double  delta = rtt - srtt;
-                            srtt   = delta/8;
-                            if (delta < 0.0)
-                                delta = -delta;
-
-                            rttvar += (delta - rttvar) / 4;
-                            rto = srtt + (4 * rttvar);
+                            srtt   = abs(rtt - srtt) / 8;
+                            rttvar+= (abs(rtt - srtt) - rttvar) / 4;
+                            rto    = srtt + (4 * rttvar);
                         }
                         if (rto > MAX_TIMEOUT * 1000)
                             rto = MAX_TIMEOUT * 1000;
-                        LOG("New RTO = %.3f ms", rto/1000);
 
                         slide_window(sliding_window, f, data,
-                            &data_offset, &left_to_copy, &seqnum, window, nb_slide);
+                            &data_offset, &left_to_copy, &seqnum,
+                            window, nb_slide);
                         left_to_send -= nb_slide;
                     } else if (left_to_send == 0) {
                         keep_sending = 0;

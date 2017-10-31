@@ -16,10 +16,10 @@ REC_OBJS = src/receiver.c src/utils.c src/pkt.c src/net.c src/min_queue.c
 SEND_OBJS= src/sender.c src/utils.c src/pkt.c src/net.c src/min_queue.c
 
 receiver:
-	${CC} ${CFLAGS} ${REC_OBJS} -DPROGRAM_NAME=\"receiver\" -o receiver ${LDFLAGS}
+	${CC} ${CFLAGS} ${REC_OBJS} -DDEBUG=1 -DPROGRAM_NAME=\"receiver\" -o receiver ${LDFLAGS}
 
 sender:
-	${CC} ${CFLAGS} ${SEND_OBJS} -DPROGRAM_NAME=\"sender\" -o sender ${LDFLAGS}
+	${CC} ${CFLAGS} ${SEND_OBJS} -DPROGRAM_NAME=\"sender\" -o sender ${LDFLAGS} -DDEBUG=0
 
 tests: all
 	@echo -ne "\033[0;32mTesting transfer a file with size equal a packet\033[0m\n"
