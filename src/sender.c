@@ -283,7 +283,7 @@ send_data(FILE *f, char *data, size_t total_len, int sfd)
         }
 
         /* Poll for incoming data */
-        int ev = poll(fd, 1, rto);
+        int ev = poll(fd, 1, rto/1000);
 
         if (ev == -1) {
             ERROR("Poll failed %s", strerror(errno));
