@@ -105,6 +105,10 @@ receive_data(FILE *f, int sfd)
   struct pollfd fds[]= {{sfd, POLLIN | POLLPRI | POLLOUT, 0}};
 
   while(keep_receiving) {
+    /* Empty the queue and write packets */
+    write_packet(f, pkt_queue, &last_seqnum_written, &window_size, &min_seqnum_missing);
+    /* End of loop if triggered */
+    if(!keep_receiving) break;
     /* Wait infinitely for new packets */
     int ev = poll(fds, 1, -1);
     if (ev == -1) {
@@ -112,14 +116,14 @@ receive_data(FILE *f, int sfd)
         break;
     } else {
       if (fds[0].revents & POLLOUT) {
-          if (last_seqnum_written != -1)
-            send_response(tr, min_seqnum_missing, window_size, last_timestamp, sfd);
+          /* Don't send ACK if there's no packet received */
+          if (last_seqnum_written != -1 && keep_receiving == 1)
+             send_response(tr, min_seqnum_missing, window_size, last_timestamp, sfd);
+          /* Avoid surcharge network with ACK, sleep 200ms */
+          if (!(fds[0].revents & (POLLIN | POLLPRI)))
+             usleep(10 * MAX_TIMEOUT);
       }
       if (fds[0].revents & (POLLIN | POLLPRI)) {
-        /* Empty the queue and write packets */
-        write_packet(f, pkt_queue, &last_seqnum_written, &window_size, &min_seqnum_missing);
-        /* End of loop if triggered */
-        if(!keep_receiving) break;
         /* Receiving data */
         char buf[MAX_PKT_SIZE];
         ssize_t read = recv(sfd, buf, MAX_PKT_SIZE, 0);
@@ -154,6 +158,7 @@ receive_data(FILE *f, int sfd)
            keep_receiving = 0;
            pkt_ready_for_queue = 0;
            pkt_del(pkt);
+           send_response(tr, min_seqnum_missing, window_size, last_timestamp, sfd);
         }
         /* Ignore if the packet is out of sequence */
         else if (seqnum_diff(last_seqnum_written, pkt_get_seqnum(pkt)) > MAX_WINDOW_SIZE
