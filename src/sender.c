@@ -201,6 +201,7 @@ send_terminating_packet(int sfd, uint8_t seqnum, uint8_t window)
             if (pkt_get_seqnum(ack) != seqnum) {
                 LOG("Received stale ACK %d, expected %d"
                     "resending...", pkt_get_seqnum(ack),seqnum);
+                usleep(200);
                 send_terminating_packet(sfd, seqnum, window);
             } else {
                 LOG("ACK for terminating packet received.(%d)",

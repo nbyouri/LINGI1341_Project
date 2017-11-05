@@ -136,6 +136,11 @@ receive_data(FILE *f, int sfd)
                     keep_receiving = 0;
                     continue;
                 }
+                if ((uint32_t)read < sizeof(pkt_t)) {
+                    ERROR("Short packet read");
+                    keep_receiving = 0;
+                    continue;
+                }
                 pkt_t *pkt = pkt_new();
                 status = pkt_decode(buf, read, pkt);
                 /* Ignore if the packet is corrupted XXX*/
@@ -144,7 +149,7 @@ receive_data(FILE *f, int sfd)
                 if (pkt_gen_crc2(pkt) != pkt_get_crc2(pkt))
                     status = E_CRC;
                 if (status != PKT_OK) {
-                    LOG("Packet received is corrupted");
+                    LOG("Packet received is corrupted %d", status);
                     pkt_ready_for_queue = 0;
                     pkt_del(pkt);
                 }
